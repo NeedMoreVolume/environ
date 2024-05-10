@@ -1,0 +1,226 @@
+package environ
+
+import (
+	"os"
+	"reflect"
+	"strconv"
+	"strings"
+	"time"
+)
+
+const (
+	// tags
+	defaultTag     = "default"      // used to set a default value, any
+	envTag         = "env"          // used to get value from env, string
+	requiredTag    = "required"     // used to set requirements for env params, bool
+	separatorTag   = "separator"    // used to select custom separators for slices and map items
+	kvSeparatorTag = "kv_separator" // used to select custom separators for key value pairs in maps
+
+	// defaults
+	defaultSeparator   = ","
+	defaultKvSeparator = ":"
+
+	// misc helpers
+	durationUnits = "smh"
+)
+
+func Load(config any) error {
+	configStruct, err := validateConfig(config)
+	if err != nil {
+		return err
+	}
+
+	err = handleStruct(configStruct)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func validateConfig(config any) (reflect.Value, error) {
+	var output reflect.Value
+	ptrRef := reflect.ValueOf(config)
+	if ptrRef.Kind() != reflect.Ptr {
+		return output, newError(ErrInvalidInput, "config", "must be provided a pointer to a struct")
+	}
+	output = ptrRef.Elem()
+	if output.Kind() != reflect.Struct {
+		return output, newError(ErrInvalidInput, "config", "must be provided a pointer to a struct")
+	}
+	return output, nil
+}
+
+func handleStruct(input reflect.Value) error {
+	inputType := input.Type()
+	for i := 0; i < input.NumField(); i++ {
+		field := input.Field(i)
+		structField := inputType.Field(i)
+
+		var err error
+		switch field.Kind() {
+		case reflect.Struct:
+			err = handleStruct(field)
+		default:
+			err = handleField(field, structField)
+		}
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func handleField(input reflect.Value, structField reflect.StructField) error {
+	value, err := getValue(structField)
+	if err != nil {
+		return err
+	}
+	err = setValue(structField, input, value)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func getValue(structField reflect.StructField) (string, error) {
+	var (
+		value    = structField.Tag.Get(defaultTag)
+		required bool
+		err      error
+	)
+	t, found := structField.Tag.Lookup(requiredTag)
+	if found {
+		required, err = strconv.ParseBool(t)
+		if err != nil {
+			return value, newError(ErrInvalidFormat, structField.Name, "required tag value is not a valid boolean representation")
+		}
+	}
+	t, found = structField.Tag.Lookup(envTag)
+	if required && !found {
+		return value, newError(ErrRequiredNotFound, structField.Name, "required field missing env tag")
+	}
+	if found {
+		v, found := os.LookupEnv(t)
+		if required {
+			if !found {
+				return value, newError(ErrRequiredNotFound, structField.Name, "required field env value missing")
+			}
+			if v == "" {
+				return value, newError(ErrRequiredNotFound, structField.Name, "required field env value empty")
+			}
+		}
+		if v != "" {
+			value = v
+		}
+	}
+	return value, nil
+}
+
+// set will set the provided value to the param, or return an error
+func setValue(structField reflect.StructField, param reflect.Value, value string) error {
+	if !param.CanSet() {
+		return nil
+	}
+
+	switch param.Type().Kind() {
+	case reflect.Bool:
+		v, err := strconv.ParseBool(value)
+		if err != nil {
+			return newError(ErrInvalidFormat, structField.Name, "value is not a valid boolean representation")
+		}
+		param.SetBool(v)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		var (
+			v   int64
+			err error
+		)
+		// handle parsing a stringified time.Duration env value
+		if param.Type() == reflect.TypeOf(time.Duration(0)) && strings.ContainsAny(value, durationUnits) {
+			var dur time.Duration
+			dur, err = time.ParseDuration(value)
+			v = dur.Nanoseconds()
+		} else {
+			v, err = strconv.ParseInt(value, 0, param.Type().Bits())
+		}
+		if err != nil {
+			return newError(ErrInvalidFormat, structField.Name, "value is not a valid integer representation")
+		}
+		param.SetInt(v)
+	case reflect.Float32, reflect.Float64:
+		v, err := strconv.ParseFloat(value, param.Type().Bits())
+		if err != nil {
+			return newError(ErrInvalidFormat, structField.Name, "value is not a valid float representation")
+		}
+		param.SetFloat(v)
+	case reflect.Map:
+		var (
+			separator   = getSeparator(structField.Tag)
+			values      = strings.Split(value, separator)
+			kvSeparator = getKvSeparator(structField.Tag)
+			t           = reflect.MakeMapWithSize(param.Type(), len(values))
+		)
+		for i := range values {
+			var (
+				kv    = strings.Split(values[i], kvSeparator)
+				key   = reflect.New(param.Type().Key()).Elem()
+				value = reflect.New(param.Type().Elem()).Elem()
+			)
+			if len(kv) != 2 {
+				return newError(ErrInvalidFormat, structField.Name, "a map item has more than one kv_separator")
+			}
+			err := setValue(structField, key, kv[0])
+			if err != nil {
+				return err
+			}
+			err = setValue(structField, value, kv[1])
+			if err != nil {
+				return err
+			}
+			t.SetMapIndex(key, value)
+		}
+		param.Set(t)
+	case reflect.Slice:
+		values := strings.Split(value, getSeparator(structField.Tag))
+		param.Grow(len(values))
+		param.SetCap(len(values))
+		param.SetLen(len(values))
+		for i := range values {
+			err := setValue(structField, param.Index(i), values[i])
+			if err != nil {
+				return err
+			}
+		}
+	case reflect.String:
+		param.SetString(value)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		val, err := strconv.ParseUint(value, 0, param.Type().Bits())
+		if err != nil {
+			return newError(ErrInvalidFormat, structField.Name, "value is not a valid uint representation")
+		}
+		param.SetUint(val)
+	default:
+		return newError(ErrUnsupportedType, structField.Name, "provided type is not supported in this version")
+	}
+	return nil
+}
+
+func getSeparator(structTag reflect.StructTag) string {
+	separator := defaultSeparator
+	// get the separator from the tags
+	if s, ok := structTag.Lookup(separatorTag); ok {
+		separator = s
+	}
+	return separator
+}
+
+func getKvSeparator(structTag reflect.StructTag) string {
+	separator := defaultKvSeparator
+	// get the separator from the tags
+	if s, ok := structTag.Lookup(kvSeparatorTag); ok {
+		separator = s
+	}
+	return separator
+}
