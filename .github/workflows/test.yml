@@ -1,10 +1,9 @@
-name: Test
+name: environ
 on: [push]
 
 jobs:
   test:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
       - name: Setup Go
@@ -13,5 +12,11 @@ jobs:
           go-version: '1.22.x'
       - name: Install dependencies
         run: go mod vendor
-      - name: Test with the Go CLI
-        run: make all
+      - name: Run test
+        run: make test
+      - name: Save artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts
+          path: .test/
+
