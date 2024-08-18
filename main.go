@@ -83,7 +83,6 @@ func handleStruct(input reflect.Value) error {
 }
 
 // wraps reading and setting a param value
-// TODO: expand to take in an optional file to get values for fields from
 func handleField(input reflect.Value, structField reflect.StructField) error {
 	value, err := getValue(structField)
 	if err != nil {
@@ -99,7 +98,6 @@ func handleField(input reflect.Value, structField reflect.StructField) error {
 }
 
 // reads value from env/stores based on field tags
-// TODO: expand to take in an optional json file to get values for fields from
 func getValue(structField reflect.StructField) (string, error) {
 	var (
 		value    = structField.Tag.Get(defaultTag)
