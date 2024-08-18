@@ -18,9 +18,15 @@ jobs:
         run: make test-setup
       - name: Run tests
         run: make test
+        continue-on-error: false
       - name: Save artifacts
         uses: actions/upload-artifact@v4
         with:
           name: artifacts
           path: .test/
-
+      - name: Update coverage report
+        uses: ncruces/go-coverage-report@v0
+        with:
+          report: true
+          chart: true
+          amend: true
