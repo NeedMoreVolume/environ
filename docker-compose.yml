@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   # localstack for testing AWs Parameter Store and Secrets Manager value loading (future)
   localstack:
