@@ -9,10 +9,16 @@ import (
 )
 
 const (
-	// tags
-	defaultTag     = "default"      // used to set a default value, any
-	envTag         = "env"          // used to get value from env, string
-	requiredTag    = "required"     // used to set requirements for env params, bool
+	// loading tags
+	defaultTag  = "default"  // used to set a default value, any
+	envTag      = "env"      // used to get value from env, string
+	ssmTag      = "ssm"      // used to get value from AWS Parameter store, string
+	asmTag      = "asm"      // used to get value from AWS Secrets Manager, string
+	gsmTag      = "gsm"      // used to get value from GCP Secrets, string
+	swiftTag    = "swift"    // used to get value from Swift based storage
+	requiredTag = "required" // used to set requirements for env params, bool: causes errors when not loaded
+
+	// formatting tags
 	separatorTag   = "separator"    // used to select custom separators for slices and map items
 	kvSeparatorTag = "kv_separator" // used to select custom separators for key value pairs in maps
 
@@ -24,20 +30,20 @@ const (
 	durationUnits = "smh"
 )
 
+// loads values based on tags provided on the struct
 func Load(config any) error {
 	configStruct, err := validateConfig(config)
 	if err != nil {
 		return err
 	}
-
 	err = handleStruct(configStruct)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
+// validates that a config is a pointer to a struct
 func validateConfig(config any) (reflect.Value, error) {
 	var output reflect.Value
 	ptrRef := reflect.ValueOf(config)
@@ -51,13 +57,17 @@ func validateConfig(config any) (reflect.Value, error) {
 	return output, nil
 }
 
+// wraps handling fields of a struct
 func handleStruct(input reflect.Value) error {
-	inputType := input.Type()
+	var (
+		inputType = input.Type()
+		err       error
+	)
 	for i := 0; i < input.NumField(); i++ {
-		field := input.Field(i)
-		structField := inputType.Field(i)
-
-		var err error
+		var (
+			field       = input.Field(i)
+			structField = inputType.Field(i)
+		)
 		switch field.Kind() {
 		case reflect.Struct:
 			err = handleStruct(field)
@@ -72,23 +82,29 @@ func handleStruct(input reflect.Value) error {
 	return nil
 }
 
+// wraps reading and setting a param value
+// TODO: expand to take in an optional file to get values for fields from
 func handleField(input reflect.Value, structField reflect.StructField) error {
 	value, err := getValue(structField)
 	if err != nil {
 		return err
 	}
-	err = setValue(structField, input, value)
-	if err != nil {
-		return err
+	if value != "" {
+		err = setValue(structField, input, value)
+		if err != nil {
+			return err
+		}
 	}
-
 	return nil
 }
 
+// reads value from env/stores based on field tags
+// TODO: expand to take in an optional json file to get values for fields from
 func getValue(structField reflect.StructField) (string, error) {
 	var (
 		value    = structField.Tag.Get(defaultTag)
 		required bool
+		loaded   bool
 		err      error
 	)
 	t, found := structField.Tag.Lookup(requiredTag)
@@ -98,28 +114,37 @@ func getValue(structField reflect.StructField) (string, error) {
 			return value, newError(ErrInvalidFormat, structField.Name, "required tag value is not a valid boolean representation")
 		}
 	}
+	// check env
 	t, found = structField.Tag.Lookup(envTag)
-	if required && !found {
-		return value, newError(ErrRequiredNotFound, structField.Name, "required field missing env tag")
-	}
 	if found {
-		v, found := os.LookupEnv(t)
-		if required {
-			if !found {
-				return value, newError(ErrRequiredNotFound, structField.Name, "required field env value missing")
-			}
-			if v == "" {
-				return value, newError(ErrRequiredNotFound, structField.Name, "required field env value empty")
-			}
-		}
+		v := os.Getenv(t)
 		if v != "" {
+			loaded = true
 			value = v
 		}
 	}
+	// check other sources
+	// TODO: get the parameter value from AWS
+	// t, found = structField.Tag.Lookup(ssmTag)
+	// if found {
+	// }
+	// TODO: get the secret value from AWS
+	// t, found = structField.Tag.Lookup(asmTag)
+	// if found {
+	// }
+	// TODO: get the secret value from GCP
+	// t, found = structField.Tag.Lookup(gsmTag)
+	// if found {
+	// }
+	// check if the field is required but not found/loaded
+	if required && !loaded {
+		return value, newError(ErrRequiredNotFound, structField.Name, "required field not loaded")
+	}
+
 	return value, nil
 }
 
-// set will set the provided value to the param, or return an error
+// set will set the loaded value to the param, or return an error
 func setValue(structField reflect.StructField, param reflect.Value, value string) error {
 	if !param.CanSet() {
 		return nil
@@ -148,7 +173,9 @@ func setValue(structField reflect.StructField, param reflect.Value, value string
 		if err != nil {
 			return newError(ErrInvalidFormat, structField.Name, "value is not a valid integer representation")
 		}
-		param.SetInt(v)
+		if v != 0 {
+			param.SetInt(v)
+		}
 	case reflect.Float32, reflect.Float64:
 		v, err := strconv.ParseFloat(value, param.Type().Bits())
 		if err != nil {

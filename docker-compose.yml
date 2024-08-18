@@ -1,6 +1,7 @@
 version: "3.8"
 
 services:
+  # localstack for testing AWs Parameter Store and Secrets Manager value loading (future)
   localstack:
     container_name: "localstack"
     image: localstack/localstack
@@ -11,5 +12,5 @@ services:
       # LocalStack configuration: https://docs.localstack.cloud/references/configuration/
       - DEBUG=${DEBUG:-0}
     volumes:
-      - "${LOCALSTACK_VOLUME_DIR:-./volume}:/var/lib/localstack"
+      - "${LOCALSTACK_VOLUME_DIR:-./.volume}:/var/lib/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
