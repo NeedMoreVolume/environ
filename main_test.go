@@ -31,6 +31,8 @@ type exampleDefaultConfig struct {
 	Duration            time.Duration `env:"MY_DURATION" default:"10"`
 	StringifiedDuration time.Duration `env:"MY_STRINGIFIED_DURATION" default:"1s"`
 
+	Bool bool `env:"MY_BOOL" default:"false"`
+
 	String string `env:"MY_STRING" default:"1"`
 
 	Map               map[string]string `env:"MY_MAP" default:"1:2,3:4"`
@@ -56,6 +58,7 @@ func TestLoad(t *testing.T) {
 		input          interface{}
 		expectedResult interface{}
 		expectedError  environ.EnvError
+		clean          func()
 	}{
 		"not a pointer to a struct": {
 			input: "this is a pointer to a struct",
@@ -67,6 +70,9 @@ func TestLoad(t *testing.T) {
 			expectedResult: "this is a pointer to a struct",
 		},
 		"default values, empty env": {
+			prep: func() {
+				os.Clearenv()
+			},
 			input: &exampleDefaultConfig{},
 			expectedResult: &exampleDefaultConfig{
 				Int:                 1,
@@ -93,7 +99,7 @@ func TestLoad(t *testing.T) {
 				},
 			},
 		},
-		"with env values": {
+		"with good env values": {
 			prep: func() {
 				// setup env values
 				os.Setenv("MY_INT", "0")
@@ -110,6 +116,7 @@ func TestLoad(t *testing.T) {
 				os.Setenv("MY_FLOAT64", "1.4")
 				os.Setenv("MY_DURATION", "1000")
 				os.Setenv("MY_STRINGIFIED_DURATION", "1m")
+				os.Setenv("MY_BOOL", "true")
 				os.Setenv("MY_STRING", "a longer string")
 				os.Setenv("MY_MAP", "10:20,30:40")
 				os.Setenv("MY_CUSTOM_MAP", "100-200:300-400")
@@ -134,6 +141,7 @@ func TestLoad(t *testing.T) {
 				Float64:             1.4,
 				Duration:            1000,
 				StringifiedDuration: time.Minute,
+				Bool:                true,
 				String:              "a longer string",
 				Map:                 map[string]string{"10": "20", "30": "40"},
 				MapWithCustomSeps:   map[int]int{100: 200, 300: 400},
@@ -144,19 +152,78 @@ func TestLoad(t *testing.T) {
 					B: 4,
 				},
 			},
+			clean: func() {
+				defer os.Unsetenv("MY_INT")
+				defer os.Unsetenv("MY_INT_8")
+				defer os.Unsetenv("MY_INT_16")
+				defer os.Unsetenv("MY_INT_32")
+				defer os.Unsetenv("MY_INT_64")
+				defer os.Unsetenv("MY_UINT")
+				defer os.Unsetenv("MY_UINT_8")
+				defer os.Unsetenv("MY_UINT_16")
+				defer os.Unsetenv("MY_UINT_32")
+				defer os.Unsetenv("MY_UINT_64")
+				defer os.Unsetenv("MY_FLOAT32")
+				defer os.Unsetenv("MY_FLOAT64")
+				defer os.Unsetenv("MY_DURATION")
+				defer os.Unsetenv("MY_STRINGIFIED_DURATION")
+				defer os.Unsetenv("MY_BOOL")
+				defer os.Unsetenv("MY_STRING")
+				defer os.Unsetenv("MY_MAP")
+				defer os.Unsetenv("MY_CUSTOM_MAP")
+				defer os.Unsetenv("MY_SLICE")
+				defer os.Unsetenv("MY_CUSTOM_SLICE")
+				defer os.Unsetenv("MY_CONFIG.A")
+				defer os.Unsetenv("B")
+			},
+		},
+		"with bad int value": {
+			prep: func() {
+				os.Setenv("MY_INT", "not an int")
+			},
+			input: &exampleDefaultConfig{},
+			expectedError: environ.EnvError{
+				Err:   environ.ErrInvalidFormat,
+				Key:   "Int",
+				Extra: "value is not a valid integer representation",
+			},
+			clean: func() {
+				os.Unsetenv("MY_INT")
+			},
+		},
+		"with bad float value": {
+			prep: func() {
+				os.Setenv("MY_FLOAT32", "not a float")
+			},
+			input: &exampleDefaultConfig{},
+			expectedError: environ.EnvError{
+				Err:   environ.ErrInvalidFormat,
+				Key:   "Float32",
+				Extra: "value is not a valid float representation",
+			},
+			clean: func() {
+				os.Unsetenv("MY_FLOAT32")
+			},
 		},
 		// TODO: add AWS Parameter Store
-		// TODO: add AWS Secrets Manager
+		// TODO: adsd AWS Secrets Manager
 		// TODO: add GCP Secrets
 		// TODO: add Swift Object Store
 	}
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
+			// prep the test
 			if tc.prep != nil {
 				tc.prep()
 			}
+			// defer the clean up
+			if tc.clean != nil {
+				defer tc.clean()
+			}
+			// run the test
 			err := environ.Load(tc.input)
+			// validate error
 			var envErr *environ.EnvError
 			if errors.As(err, &envErr) {
 				if tc.expectedError != *envErr {
@@ -164,23 +231,25 @@ func TestLoad(t *testing.T) {
 					t.FailNow()
 				}
 			}
-
+			// done checking if this should have errored
+			if tc.expectedError.Err != nil {
+				return
+			}
+			// validate result
 			if tc.input == tc.expectedResult {
 				return
 			}
-
+			// otherwise use reflection to verify the results
 			result, ok := tc.input.(*exampleDefaultConfig)
 			if !ok {
 				logger.Error().Msg("failed to convert input to config")
 				t.FailNow()
 			}
-
 			expectedResult, ok := tc.expectedResult.(*exampleDefaultConfig)
 			if !ok {
 				logger.Error().Msg("failed to convert expected result to config")
 				t.FailNow()
 			}
-
 			if !reflect.DeepEqual(result, expectedResult) {
 				logger.Error().Any("result", result).Any("expected result", expectedResult).Msg("expected result does not match result")
 				t.FailNow()
