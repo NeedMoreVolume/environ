@@ -68,6 +68,9 @@ func handleStruct(input reflect.Value) error {
 			field       = input.Field(i)
 			structField = inputType.Field(i)
 		)
+		if !field.CanSet() {
+			return newError(ErrUnsettableParam, structField.Name, "")
+		}
 		switch field.Kind() {
 		case reflect.Struct:
 			err = handleStruct(field)
@@ -144,10 +147,6 @@ func getValue(structField reflect.StructField) (string, error) {
 
 // set will set the loaded value to the param, or return an error
 func setValue(structField reflect.StructField, param reflect.Value, value string) error {
-	if !param.CanSet() {
-		return nil
-	}
-
 	switch param.Type().Kind() {
 	case reflect.Bool:
 		v, err := strconv.ParseBool(value)
