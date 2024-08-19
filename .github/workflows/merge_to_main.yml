@@ -7,6 +7,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    outputs:
+      run_id: ${{ github.run_id }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup Go
@@ -26,9 +28,11 @@ jobs:
           path: .test/
   coverage:
     runs-on: ubuntu-latest
+    needs: test
     steps:
       - uses: actions/download-artifact@v4
         with:
+          run-id: ${{ needs.test.outputs.run_id }}
           name: artifacts
           path: .test/
       - name: Update coverage report
