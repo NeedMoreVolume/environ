@@ -48,6 +48,14 @@ type exampleNestedConfig struct {
 	B int    `env:"B"`
 }
 
+type exampleRequiredConfig struct {
+	RequiredField string `env:"MY_STRING" required:"true"`
+}
+
+type badExampleRequiredConfig struct {
+	ReuqiredField string `env:"MY_STRING" required:"not a boolean"`
+}
+
 func unsetTestEnv() {
 	os.Unsetenv("MY_INT")
 	os.Unsetenv("MY_INT_8")
@@ -199,6 +207,40 @@ func TestLoad(t *testing.T) {
 			},
 			clean: func() {
 				os.Unsetenv("MY_FLOAT32")
+			},
+		},
+		"with bad bool value": {
+			prep: func() {
+				os.Setenv("MY_BOOL", "not a boolean")
+			},
+			input: &exampleDefaultConfig{},
+			expectedError: environ.EnvError{
+				Err:   environ.ErrInvalidFormat,
+				Key:   "Bool",
+				Extra: "value is not a valid boolean representation",
+			},
+			clean: func() {
+				os.Unsetenv("MY_BOOL")
+			},
+		},
+		"with required value set": {
+			prep: func() {
+				os.Setenv("MY_STRING", "this is required")
+			},
+			input: &exampleRequiredConfig{},
+			expectedResult: &exampleRequiredConfig{
+				RequiredField: "this is required",
+			},
+			clean: func() {
+				os.Unsetenv("MY_STRING")
+			},
+		},
+		"with required value not set": {
+			input: &exampleRequiredConfig{},
+			expectedError: environ.EnvError{
+				Err:   environ.ErrRequiredNotFound,
+				Key:   "RequiredField",
+				Extra: "required field not loaded",
 			},
 		},
 		// TODO: add AWS Parameter Store
