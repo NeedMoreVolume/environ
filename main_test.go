@@ -236,11 +236,20 @@ func TestLoad(t *testing.T) {
 			},
 		},
 		"with required value not set": {
+			prep:  unsetTestEnv,
 			input: &exampleRequiredConfig{},
 			expectedError: environ.EnvError{
 				Err:   environ.ErrRequiredNotFound,
 				Key:   "RequiredField",
 				Extra: "required field not loaded",
+			},
+		},
+		"with invalid required config struct": {
+			input: &badExampleRequiredConfig{},
+			expectedError: environ.EnvError{
+				Err:   environ.ErrInvalidFormat,
+				Key:   "ReuqiredField",
+				Extra: "required tag value is not a valid boolean representation",
 			},
 		},
 		// TODO: add AWS Parameter Store
@@ -265,8 +274,9 @@ func TestLoad(t *testing.T) {
 			var envErr *environ.EnvError
 			if errors.As(err, &envErr) {
 				if tc.expectedError != *envErr {
-					slog.Error("expected error didn't match error", "expected error", tc.expectedError, "error", envErr)
+					slog.Error("expected error didn't match error", "expected error", tc.expectedError, "error", *envErr)
 					t.FailNow()
+					return
 				}
 			}
 			// done checking if this should have errored
@@ -278,19 +288,38 @@ func TestLoad(t *testing.T) {
 				return
 			}
 			// otherwise use reflection to verify the results
-			result, ok := tc.input.(*exampleDefaultConfig)
-			if !ok {
-				slog.Error("failed to convert input to config")
-				t.FailNow()
+			var result interface{}
+			defaultConfig, isDefaultConfig := tc.input.(*exampleDefaultConfig)
+			if isDefaultConfig {
+				result = defaultConfig
 			}
-			expectedResult, ok := tc.expectedResult.(*exampleDefaultConfig)
-			if !ok {
+			requiredConfig, isRequiredConfig := tc.input.(*exampleRequiredConfig)
+			if isRequiredConfig {
+				result = requiredConfig
+			}
+			if !isDefaultConfig && !isRequiredConfig {
+				slog.Error("failed to convert input to config")
+				t.Fail()
+				return
+			}
+			var expectedResult interface{}
+			defaultConfig, isDefaultConfig = tc.expectedResult.(*exampleDefaultConfig)
+			if isDefaultConfig {
+				expectedResult = defaultConfig
+			}
+			requiredConfig, isRequiredConfig = tc.expectedResult.(*exampleRequiredConfig)
+			if isRequiredConfig {
+				expectedResult = requiredConfig
+			}
+			if !isDefaultConfig && !isRequiredConfig {
 				slog.Error("failed to convert expected result to config")
-				t.FailNow()
+				t.Fail()
+				return
 			}
 			if !reflect.DeepEqual(result, expectedResult) {
 				slog.Error("expected result does not match result", "expected result", expectedResult, "result", result)
-				t.FailNow()
+				t.Fail()
+				return
 			}
 		})
 	}
