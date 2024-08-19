@@ -3,12 +3,11 @@ package environ_test
 import (
 	"environ"
 	"errors"
+	"log/slog"
 	"os"
 	"reflect"
 	"testing"
 	"time"
-
-	"github.com/rs/zerolog"
 )
 
 type exampleDefaultConfig struct {
@@ -49,10 +48,32 @@ type exampleNestedConfig struct {
 	B int    `env:"B"`
 }
 
+func unsetTestEnv() {
+	os.Unsetenv("MY_INT")
+	os.Unsetenv("MY_INT_8")
+	os.Unsetenv("MY_INT_16")
+	os.Unsetenv("MY_INT_32")
+	os.Unsetenv("MY_INT_64")
+	os.Unsetenv("MY_UINT")
+	os.Unsetenv("MY_UINT_8")
+	os.Unsetenv("MY_UINT_16")
+	os.Unsetenv("MY_UINT_32")
+	os.Unsetenv("MY_UINT_64")
+	os.Unsetenv("MY_FLOAT32")
+	os.Unsetenv("MY_FLOAT64")
+	os.Unsetenv("MY_DURATION")
+	os.Unsetenv("MY_STRINGIFIED_DURATION")
+	os.Unsetenv("MY_BOOL")
+	os.Unsetenv("MY_STRING")
+	os.Unsetenv("MY_MAP")
+	os.Unsetenv("MY_CUSTOM_MAP")
+	os.Unsetenv("MY_SLICE")
+	os.Unsetenv("MY_CUSTOM_SLICE")
+	os.Unsetenv("MY_CONFIG.A")
+	os.Unsetenv("B")
+}
+
 func TestLoad(t *testing.T) {
-	var (
-		logger = zerolog.New(os.Stderr)
-	)
 	testCases := map[string]struct {
 		prep           func()
 		input          interface{}
@@ -70,9 +91,7 @@ func TestLoad(t *testing.T) {
 			expectedResult: "this is a pointer to a struct",
 		},
 		"default values, empty env": {
-			prep: func() {
-				os.Clearenv()
-			},
+			prep:  unsetTestEnv,
 			input: &exampleDefaultConfig{},
 			expectedResult: &exampleDefaultConfig{
 				Int:                 1,
@@ -152,30 +171,7 @@ func TestLoad(t *testing.T) {
 					B: 4,
 				},
 			},
-			clean: func() {
-				defer os.Unsetenv("MY_INT")
-				defer os.Unsetenv("MY_INT_8")
-				defer os.Unsetenv("MY_INT_16")
-				defer os.Unsetenv("MY_INT_32")
-				defer os.Unsetenv("MY_INT_64")
-				defer os.Unsetenv("MY_UINT")
-				defer os.Unsetenv("MY_UINT_8")
-				defer os.Unsetenv("MY_UINT_16")
-				defer os.Unsetenv("MY_UINT_32")
-				defer os.Unsetenv("MY_UINT_64")
-				defer os.Unsetenv("MY_FLOAT32")
-				defer os.Unsetenv("MY_FLOAT64")
-				defer os.Unsetenv("MY_DURATION")
-				defer os.Unsetenv("MY_STRINGIFIED_DURATION")
-				defer os.Unsetenv("MY_BOOL")
-				defer os.Unsetenv("MY_STRING")
-				defer os.Unsetenv("MY_MAP")
-				defer os.Unsetenv("MY_CUSTOM_MAP")
-				defer os.Unsetenv("MY_SLICE")
-				defer os.Unsetenv("MY_CUSTOM_SLICE")
-				defer os.Unsetenv("MY_CONFIG.A")
-				defer os.Unsetenv("B")
-			},
+			clean: unsetTestEnv,
 		},
 		"with bad int value": {
 			prep: func() {
@@ -227,7 +223,7 @@ func TestLoad(t *testing.T) {
 			var envErr *environ.EnvError
 			if errors.As(err, &envErr) {
 				if tc.expectedError != *envErr {
-					logger.Error().Err(err).Msg("expected error didn't match error")
+					slog.Error("expected error didn't match error", "expected error", tc.expectedError, "error", envErr)
 					t.FailNow()
 				}
 			}
@@ -242,16 +238,16 @@ func TestLoad(t *testing.T) {
 			// otherwise use reflection to verify the results
 			result, ok := tc.input.(*exampleDefaultConfig)
 			if !ok {
-				logger.Error().Msg("failed to convert input to config")
+				slog.Error("failed to convert input to config")
 				t.FailNow()
 			}
 			expectedResult, ok := tc.expectedResult.(*exampleDefaultConfig)
 			if !ok {
-				logger.Error().Msg("failed to convert expected result to config")
+				slog.Error("failed to convert expected result to config")
 				t.FailNow()
 			}
 			if !reflect.DeepEqual(result, expectedResult) {
-				logger.Error().Any("result", result).Any("expected result", expectedResult).Msg("expected result does not match result")
+				slog.Error("expected result does not match result", "expected result", expectedResult, "result", result)
 				t.FailNow()
 			}
 		})

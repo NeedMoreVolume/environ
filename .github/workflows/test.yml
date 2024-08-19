@@ -10,12 +10,8 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.22.x'
-      - name: Install dependencies
-        run: go mod vendor
       - name: Setup artifact directory
         run: make init
-      - name: Setup test environment
-        run: make test-setup
       - name: Run tests
         run: make test
         continue-on-error: false
