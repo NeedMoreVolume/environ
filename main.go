@@ -124,19 +124,6 @@ func getValue(structField reflect.StructField) (string, error) {
 			value = v
 		}
 	}
-	// check other sources
-	// TODO: get the parameter value from AWS
-	// t, found = structField.Tag.Lookup(ssmTag)
-	// if found {
-	// }
-	// TODO: get the secret value from AWS
-	// t, found = structField.Tag.Lookup(asmTag)
-	// if found {
-	// }
-	// TODO: get the secret value from GCP
-	// t, found = structField.Tag.Lookup(gsmTag)
-	// if found {
-	// }
 	// check if the field is required but not found/loaded
 	if required && !loaded {
 		return value, newError(ErrRequiredNotFound, structField.Name, "required field not loaded")
