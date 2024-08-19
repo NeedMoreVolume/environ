@@ -1,3 +1,5 @@
+[![Go Coverage](https://github.com/NeedMoreVolume/environ/wiki/coverage.svg)](https://raw.githack.com/wiki/NeedMoreVolume/environ/coverage.html)
+
 # Environ
 
 Golang library for loading config values.
@@ -13,6 +15,8 @@ The library supports the following tags:
 
 To use this library, just make a configuration struct with any of the above tags and then pass a pointer of one in the Load call.
 This library also provides a more detailed error structure, providing a Key and Extra with more information about the error but never any raw values to ensure no confidential data is accidentally leaked from logging loading errors.
+This library also treats unloaded required variables as a runtime error, setting default values for required variables will not circumvent this. The definition of required here is around the value being loaded successfully, such as loading the correct user/password for authentication, where the application would not be operational if the value is not successfully loaded.
+Currently, the noteworthy limitations of this library are that config files are not supported, and maps of slices are not supported (IE: `map[string][]string`).
 
 ## Example
 ```
@@ -48,9 +52,10 @@ func main() {
 }
 ```
 
-## Supported value locations
+## Supported locations to load values from
+Default values, supported by `default` tags
 Environment variables, suppported by `env` tags
 
 ## Future plans
-1. Integrate 3rd party key value stores such as Google Secrets Manager, AWS Secrets Manager, and AWS Parameter Store.
-2. Support loading with options in a new func LoadWithOpts(config any, EnvironOpts...) in order to pass options for loading purposes as one might when using the above value stores.
+1. Integrate 3rd party key value stores such as Google Secrets Manager, AWS Secrets Manager, and AWS Parameter Store. This will require providing keys to use for retreiving private reources. Likely, this would be safest to do via environment variables in the same fashion as AWS v2 Golang SDK.
+2. Support configurable loading options for 3rd party resources in order to configure options like backoffs, or jitter.
