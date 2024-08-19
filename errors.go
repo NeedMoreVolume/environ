@@ -11,6 +11,7 @@ var (
 	ErrInvalidFormat    = errors.New("has invalid format")                   // returned for tags/params that are not in the correct format
 	ErrInvalidInput     = errors.New("must be a pointer to a struct")        // returned for not providing a pointer to a struct
 	ErrUnsupportedType  = errors.New("has unsupported type")                 // returned for types that are not supported
+	ErrUnsettableParam  = errors.New("must be a settable parameter")         // returned when unsettable params are encountered in a struct
 )
 
 type EnvError struct {
@@ -26,8 +27,10 @@ func (e *EnvError) Error() string {
 	sb.WriteString(e.Key)
 	sb.WriteString(" ")
 	sb.WriteString(e.Err.Error())
-	sb.WriteString(" | extra: ")
-	sb.WriteString(e.Extra)
+	if e.Extra != "" {
+		sb.WriteString(" | extra: ")
+		sb.WriteString(e.Extra)
+	}
 	return sb.String()
 }
 

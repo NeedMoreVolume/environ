@@ -68,6 +68,9 @@ func handleStruct(input reflect.Value) error {
 			field       = input.Field(i)
 			structField = inputType.Field(i)
 		)
+		if !field.CanSet() {
+			return newError(ErrUnsettableParam, structField.Name, "")
+		}
 		switch field.Kind() {
 		case reflect.Struct:
 			err = handleStruct(field)
@@ -121,19 +124,6 @@ func getValue(structField reflect.StructField) (string, error) {
 			value = v
 		}
 	}
-	// check other sources
-	// TODO: get the parameter value from AWS
-	// t, found = structField.Tag.Lookup(ssmTag)
-	// if found {
-	// }
-	// TODO: get the secret value from AWS
-	// t, found = structField.Tag.Lookup(asmTag)
-	// if found {
-	// }
-	// TODO: get the secret value from GCP
-	// t, found = structField.Tag.Lookup(gsmTag)
-	// if found {
-	// }
 	// check if the field is required but not found/loaded
 	if required && !loaded {
 		return value, newError(ErrRequiredNotFound, structField.Name, "required field not loaded")
@@ -144,10 +134,6 @@ func getValue(structField reflect.StructField) (string, error) {
 
 // set will set the loaded value to the param, or return an error
 func setValue(structField reflect.StructField, param reflect.Value, value string) error {
-	if !param.CanSet() {
-		return nil
-	}
-
 	switch param.Type().Kind() {
 	case reflect.Bool:
 		v, err := strconv.ParseBool(value)
