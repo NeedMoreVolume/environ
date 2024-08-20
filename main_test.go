@@ -81,6 +81,10 @@ func unsetTestEnv() {
 	os.Unsetenv("B")
 }
 
+func getPointer(t any) *any {
+	return &t
+}
+
 func TestLoad(t *testing.T) {
 	testCases := map[string]struct {
 		prep           func()
@@ -97,6 +101,14 @@ func TestLoad(t *testing.T) {
 				Extra: "must be provided a pointer to a struct",
 			},
 			expectedResult: "this is a pointer to a struct",
+		},
+		"pointer to something that is not a struct": {
+			input: getPointer("a"),
+			expectedError: environ.EnvError{
+				Err:   environ.ErrInvalidInput,
+				Key:   "config",
+				Extra: "must be provided a pointer to a struct",
+			},
 		},
 		"default values, empty env": {
 			prep:  unsetTestEnv,
@@ -195,6 +207,20 @@ func TestLoad(t *testing.T) {
 				os.Unsetenv("MY_INT")
 			},
 		},
+		"with bad uint value": {
+			prep: func() {
+				os.Setenv("MY_UINT", "-1")
+			},
+			input: &exampleDefaultConfig{},
+			expectedError: environ.EnvError{
+				Err:   environ.ErrInvalidFormat,
+				Key:   "Uint",
+				Extra: "value is not a valid uint representation",
+			},
+			clean: func() {
+				os.Unsetenv("MY_UINT")
+			},
+		},
 		"with bad float value": {
 			prep: func() {
 				os.Setenv("MY_FLOAT32", "not a float")
@@ -221,6 +247,62 @@ func TestLoad(t *testing.T) {
 			},
 			clean: func() {
 				os.Unsetenv("MY_BOOL")
+			},
+		},
+		"with bad map input": {
+			prep: func() {
+				os.Setenv("MY_MAP", "1::2,3:4")
+			},
+			input: &exampleDefaultConfig{},
+			expectedError: environ.EnvError{
+				Err:   environ.ErrInvalidFormat,
+				Key:   "Map",
+				Extra: "a map item has more than one kv_separator",
+			},
+			clean: func() {
+				os.Unsetenv("MY_MAP")
+			},
+		},
+		"with bad map key": {
+			prep: func() {
+				os.Setenv("MY_CUSTOM_MAP", "a-1")
+			},
+			input: &exampleDefaultConfig{},
+			expectedError: environ.EnvError{
+				Err:   environ.ErrInvalidFormat,
+				Key:   "MapWithCustomSeps",
+				Extra: "value is not a valid integer representation",
+			},
+			clean: func() {
+				os.Unsetenv("MY_CUSTOM_MAP")
+			},
+		},
+		"with bad map value": {
+			prep: func() {
+				os.Setenv("MY_CUSTOM_MAP", "1-a")
+			},
+			input: &exampleDefaultConfig{},
+			expectedError: environ.EnvError{
+				Err:   environ.ErrInvalidFormat,
+				Key:   "MapWithCustomSeps",
+				Extra: "value is not a valid integer representation",
+			},
+			clean: func() {
+				os.Unsetenv("MY_CUSTOM_MAP")
+			},
+		},
+		"with bad slice value": {
+			prep: func() {
+				os.Setenv("MY_CUSTOM_SLICE", "1|a")
+			},
+			input: &exampleDefaultConfig{},
+			expectedError: environ.EnvError{
+				Err:   environ.ErrInvalidFormat,
+				Key:   "SliceWithCustomSep",
+				Extra: "value is not a valid integer representation",
+			},
+			clean: func() {
+				os.Unsetenv("MY_CUSTOM_SLICE")
 			},
 		},
 		"with required value set": {
@@ -278,6 +360,11 @@ func TestLoad(t *testing.T) {
 					t.FailNow()
 					return
 				}
+			}
+			if err == nil && tc.expectedError.Err != nil {
+				slog.Error("no error occured where an error was expected", "expected error", tc.expectedError)
+				t.FailNow()
+				return
 			}
 			// done checking if this should have errored
 			if tc.expectedError.Err != nil {
