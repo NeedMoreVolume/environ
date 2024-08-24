@@ -1,9 +1,10 @@
 package environ_test
 
 import (
-	"environ"
 	"log/slog"
 	"testing"
+
+	"github.com/NeedMoreVolume/environ"
 )
 
 func TestErrors(t *testing.T) {

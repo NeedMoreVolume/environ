@@ -1,13 +1,14 @@
 package environ_test
 
 import (
-	"environ"
 	"errors"
 	"log/slog"
 	"os"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/NeedMoreVolume/environ"
 )
 
 type exampleDefaultConfig struct {
