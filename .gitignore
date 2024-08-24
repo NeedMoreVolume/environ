@@ -21,8 +21,7 @@ vendor/
 go.work
 
 # Docker volumes
-volume
-.volume
+.volumes
 
 # vscode settings
 .vscode

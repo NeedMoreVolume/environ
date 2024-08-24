@@ -8,10 +8,14 @@ all: init test-setup test
 init:
 	mkdir $(test-output-dir)
 
-# target to setup test environcment
+# target to setup a devcontainer
+dev-setup:
+	docker compose up --wait
+
+# target to setup a localstack on a docker network
 # 	creates 3rd party stores for testing, IE: localstack as defined in the docker-compose file
 test-setup:   
-	docker compose up --wait
+	docker compose up -d localstack --wait
 
 # target to run test suite
 #	run tests
