@@ -54,7 +54,15 @@ type exampleRequiredConfig struct {
 }
 
 type badExampleRequiredConfig struct {
-	ReuqiredField string `env:"MY_STRING" required:"not a boolean"`
+	RequiredField string `env:"MY_STRING" required:"not a boolean"`
+}
+
+type badExampleConfig struct {
+	unexportedField string `env:"MY_UNEXPORTED_VAR"`
+}
+
+type unsupportedTypeConfig struct {
+	UnsupportedType func() `env:"MY_UNSUPPORTED_TYPE" default:"not supported"`
 }
 
 func unsetTestEnv() {
@@ -331,8 +339,26 @@ func TestLoad(t *testing.T) {
 			input: &badExampleRequiredConfig{},
 			expectedError: environ.EnvError{
 				Err:   environ.ErrInvalidFormat,
-				Key:   "ReuqiredField",
+				Key:   "RequiredField",
 				Extra: "required tag value is not a valid boolean representation",
+			},
+		},
+		"with an unexported field in the config struct": {
+			input: &badExampleConfig{
+				unexportedField: "a", // satisfying linter for unused variable
+			},
+			expectedError: environ.EnvError{
+				Err:   environ.ErrUnsettableParam,
+				Key:   "unexportedField",
+				Extra: "",
+			},
+		},
+		"with an unsupported type in the config": {
+			input: &unsupportedTypeConfig{},
+			expectedError: environ.EnvError{
+				Err:   environ.ErrUnsupportedType,
+				Key:   "UnsupportedType",
+				Extra: "provided type is not supported in this version",
 			},
 		},
 		// TODO: add AWS Parameter Store

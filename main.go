@@ -30,7 +30,7 @@ const (
 	durationUnits = "smh"
 )
 
-// loads values based on tags provided on the struct
+// Load fills the config with values based on tags provided on the struct
 func Load(config any) error {
 	configStruct, err := validateConfig(config)
 	if err != nil {
