@@ -1,8 +1,16 @@
 services:
-  # localstack for testing AWs Parameter Store and Secrets Manager value loading (future)
+  # creates a devcontainer
+  devcontainer:
+    image: mcr.microsoft.com/devcontainers/go:1.22
+    volumes:
+      - ./:/workspace/environ/
+    command: sleep infinity
+    networks:
+      - environ
+
+  # localstack to mimic AWS services @ localhost
   localstack:
-    container_name: "localstack"
-    image: localstack/localstack
+    image: localstack/localstack:3.6
     ports:
       - "127.0.0.1:4566:4566"            # LocalStack Gateway
       - "127.0.0.1:4510-4559:4510-4559"  # external services port range
@@ -10,5 +18,11 @@ services:
       # LocalStack configuration: https://docs.localstack.cloud/references/configuration/
       - DEBUG=${DEBUG:-0}
     volumes:
-      - "${LOCALSTACK_VOLUME_DIR:-./.volume}:/var/lib/localstack"
+      - "${LOCALSTACK_VOLUME_DIR:-./.volumes/localstack}:/var/lib/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
+    networks:
+      - environ
+
+networks:
+  environ:
+    name: "environ"
