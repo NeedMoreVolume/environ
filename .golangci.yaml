@@ -1,0 +1,23 @@
+linters:
+  enable:
+  - errcheck
+  - gosimple
+  - govet
+  - ineffassign
+  - staticcheck
+  - unused
+  - asasalint
+  - bidichk
+  - copyloopvar
+  - decorder
+  - err113
+  - errname
+  - errorlint
+  - goconst
+  - gocritic
+  - gocyclo
+  - gosec
+  - prealloc
+  - predeclared
+  - revive
+  - wastedassign

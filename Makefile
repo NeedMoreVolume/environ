@@ -4,11 +4,15 @@ test-output-dir = .test
 # run all targets
 all: init test-setup test
 
-# target to initialize the directories needed for other targets
+# target to initialize the directories needed for other targets ensuring linter is installed for lint directive
 init:
 	mkdir $(test-output-dir)
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.60.3
 
-# target to setup a devcontainer
+lint:
+	golangci-lint run --config .\.golangci.yaml -v
+
+# target to setup a devcontainer and a localstack on a docker network
 dev-setup:
 	docker compose up --wait
 
