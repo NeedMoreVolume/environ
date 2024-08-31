@@ -20,7 +20,7 @@ var (
 	ErrUnsettableParam = errors.New("must be a settable parameter")
 )
 
-// EnvError wraps the error with key infomation and some helpful text for fixing the issues with loading a config
+// EnvError implements the error interface with key infomation and some helpful text for fixing the issues with loading a config
 type EnvError struct {
 	Err   error
 	Key   string

@@ -345,7 +345,7 @@ func TestLoad(t *testing.T) {
 		},
 		"with an unexported field in the config struct": {
 			input: &badExampleConfig{
-				unexportedField: "a", // satisfying linter for unused variable
+				unexportedField: "", // satisfying unused field linter rule
 			},
 			expectedError: environ.EnvError{
 				Err:   environ.ErrUnsettableParam,
