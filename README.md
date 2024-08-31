@@ -38,17 +38,17 @@ type MysqlConfig struct {
 }
 
 func main() {
-  var cfg MysqlConfig
-  // load config
+	var cfg MysqlConfig
+	// load config
 	err := environ.Load(&cfg)
 	if err != nil {
-    // handle error
+   		// handle error
 
-    // can also take the errors.As approach
+    	// can also take the errors.As approach
 		var envErr *environ.EnvError
 		if errors.As(err, &envErr) {
-      // handle EnvError
-    }
+      		// handle EnvError
+		}
 	}
 }
 ```
