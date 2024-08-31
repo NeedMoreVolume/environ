@@ -46,12 +46,12 @@ func main() {
 	err := environ.Load(&cfg)
 	if err != nil {
    		// handle error
+	}
 
     	// can also take the errors.As approach
-		var envErr *environ.EnvError
-		if errors.As(err, &envErr) {
-      		// handle EnvError
-		}
+	var envErr *environ.EnvError
+	if errors.As(err, &envErr) {
+		// handle EnvError
 	}
 }
 ```
