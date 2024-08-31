@@ -10,7 +10,7 @@ init:
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.60.3
 
 lint:
-	golangci-lint run
+	golangci-lint run --config .\.golangci.yaml -v
 
 # target to setup a devcontainer and a localstack on a docker network
 dev-setup:
