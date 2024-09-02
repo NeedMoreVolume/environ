@@ -1,10 +1,10 @@
-package load_test
+package environ_test
 
 import (
 	"log/slog"
 	"testing"
 
-	environ "github.com/NeedMoreVolume/environ/load"
+	"github.com/NeedMoreVolume/environ"
 )
 
 func TestErrors(t *testing.T) {

@@ -1,4 +1,4 @@
-// This is an executable that will read a config struct file and create a default.env file
+// environ is an executable that will read a file containing config struct(s) and create env files for each struct encountered.
 package main
 
 import (
@@ -23,7 +23,7 @@ const (
 )
 
 var (
-	inputFileName = flag.String(inputFlagName, "./config.go", "input file containing config struct(s)")
+	inputFileName = flag.String(inputFlagName, "./config/config.go", "input file containing config struct(s)")
 	outputDir     = flag.String(outputPathFlagName, ".env/", "output directory to save env files for config struct(s)")
 	targetEnv     = flag.String(targetFlagName, "Config", "name a specific config to generate an env file for")
 )

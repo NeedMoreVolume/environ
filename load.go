@@ -1,4 +1,4 @@
-package load
+package environ
 
 import (
 	"os"
@@ -30,7 +30,7 @@ const (
 	durationUnits = "smh"
 )
 
-// Load fills the config with values based on tags provided on the struct
+// Load fills a config with values based on tags provided on the struct
 func Load(config any) error {
 	configStruct, err := validateConfig(config)
 	if err != nil {

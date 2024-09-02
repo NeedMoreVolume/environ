@@ -2,13 +2,13 @@
 
 # Environ
 
-Environ started as a library to facilitate loading values for a struct by tags, where the tags define the rules for a value and where it can be loaded from.
-Environ has now grown to become an environment management tool in golang.
-This consists of two main sections. The library section for config management in code, and the CLI tool to facilitate env-file management.
-The library documentation can be found in the README in the library directory.
+## Library
+
+There are two main components of environ. The library which facilitates config management in code, and the CLI tool to facilitate environment management.
+This is the library documentation.
 The CLI tool documentation can be found in the README in the cmd/environ directory.
 
-## Tags
+### Tags
 
 The library supports the following tags:
 -  `env`: used to denote the key for loading an environment variable value 
@@ -17,7 +17,8 @@ The library supports the following tags:
 - `separator`: used to override the default `,` separator for slice elements and map items.
 - `kv_separator`: used to override the default `:` separator for key value pairs of map items.
 
-## Hows, whys, limitations
+### Hows, whys, limitations
+
 This library uses reflection to read attribute tags and set the values of the attributes of a provided struct accordingly.
 
 This library treats unloaded required variables as an error. The reasoning behind this descision is that if truely required values are not loaded sucessfully it can lead to degraded service health or even total outage. This should help developers capture any configuration issues during the intialization phase, much like when using a Ping after opening a Mysql connection to validate the database is available and accessible. 
@@ -26,11 +27,11 @@ This library also provides a more detailed error structure, providing a Key and 
 
 Currently, the noteworthy limitations of this library are that config files are not supported, and maps of slices are not supported (IE: `map[string][]string`).
 
-## Usage
+### Usage
 
 To use this library, just make a configuration struct with any of the above tags and then pass a pointer of one in the Load call.
 
-### Example
+#### Example
 
 The following is an example of a simple Mysql config that contains the necessary information to open a DB connection.
 ```
@@ -61,8 +62,12 @@ func main() {
 ```
 This config would fail to load if any of the username, password, or host values are not loaded successfully from a given environment.
 
-## Supported locations to load values from
+### Supported locations to load values from
 
 Default values, supported by `default` tags
 
 Environment variables, suppported by `env` tags
+
+## CLI
+
+See the README in cmd/environ for more.
