@@ -27,3 +27,7 @@ test-setup:
 test:
 	go test -cover -coverprofile=$(test-output-dir)/coverage.out -v ./... > $(test-output-dir)/test-run.log
 	go tool cover -html=$(test-output-dir)/coverage.out -o $(test-output-dir)/coverage.html
+
+# target to build the executable
+build:
+	go build -C ./cmd/environ ./

@@ -1,4 +1,4 @@
-package environ_test
+package load_test
 
 import (
 	"errors"
@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/NeedMoreVolume/environ"
+	environ "github.com/NeedMoreVolume/environ/load"
 )
 
 type exampleDefaultConfig struct {

@@ -2,7 +2,11 @@
 
 # Environ
 
-Environ facilitates loading values for a struct by tags, where the tags define the rules for a value and where it can be loaded from.
+Environ started as a library to facilitate loading values for a struct by tags, where the tags define the rules for a value and where it can be loaded from.
+Environ has now grown to become an environment management tool in golang.
+This consists of two main sections. The library section for config management in code, and the CLI tool to facilitate env-file management.
+The library documentation can be found in the README in the library directory.
+The CLI tool documentation can be found in the README in the cmd/environ directory.
 
 ## Tags
 
