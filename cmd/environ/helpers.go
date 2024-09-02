@@ -2,10 +2,12 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 )
 
 // loads the file containing the config struct(s)
@@ -72,11 +74,16 @@ func copyFile(sourceFileName, destFileName string) error {
 	return err
 }
 
-// generates the full env file name from the config struct and the output path
-func generateEnvFileName(line string, outputPath string) string {
+// returns the config struct name from a file line
+func getConfigNameFromLine(line string) string {
+	return strings.Split(line, " ")[1]
+}
+
+// output path should contain the trailing slash.
+func generateEnvFileName(fileName string, outputPath string) string {
 	var envFileName strings.Builder
 	envFileName.WriteString(outputPath)
-	envFileName.WriteString(strings.Split(line, " ")[1])
+	envFileName.WriteString(fileName)
 	return envFileName.String()
 }
 
@@ -104,6 +111,34 @@ func getEnvValueFromLine(line string) string {
 	}
 
 	return output
+}
+
+// function wraps creation process of an env file
+//
+//	copys existing env file before truncating/creating a new env file from structs.
+//	files returned must be closed by the caller, this function makes no effort to ensure files opened are closed.
+func openNewEnvFile(configStructName string, outputDir *string) (*os.File, error) {
+	var (
+		envFile *os.File
+		err     error
+	)
+
+	// check if this file already exists, if exists, copy it
+	envFileName := generateEnvFileName(configStructName, *outputDir)
+	if fileExists(envFileName) {
+		oldCopyFileName := fmt.Sprintf("%s-%s", envFileName, time.Now().Format(time.DateOnly))
+		err = copyFile(envFileName, oldCopyFileName)
+		if err != nil {
+			slog.Error("failed to save old env file", "env file name", envFileName, "error", err)
+		}
+		return envFile, err
+	}
+
+	envFile, err = os.Create(envFileName)
+	if err != nil {
+		slog.Error("failed to open/truncate env file", "error", err)
+	}
+	return envFile, err
 }
 
 // writes an env file line given a envFile, tag and value to set
