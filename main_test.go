@@ -65,6 +65,10 @@ type unsupportedTypeConfig struct {
 	UnsupportedType func() `env:"MY_UNSUPPORTED_TYPE" default:"not supported"`
 }
 
+type mapWithCsvString struct {
+	Map map[string]string `env:"MY_MAP" separator:"|"`
+}
+
 func unsetTestEnv() {
 	os.Unsetenv("MY_INT")
 	os.Unsetenv("MY_INT_8")
@@ -361,6 +365,18 @@ func TestLoad(t *testing.T) {
 				Extra: "provided type is not supported in this version",
 			},
 		},
+		"with a csv string as a map item": {
+			prep: func() {
+				os.Setenv("MY_MAP", "charset:utf8mb4,utf8")
+			},
+			input: &mapWithCsvString{},
+			expectedResult: &mapWithCsvString{
+				Map: map[string]string{"charset": "utf8mb4,utf8"},
+			},
+			clean: func() {
+				os.Unsetenv("MY_MAP")
+			},
+		},
 		// TODO: add AWS Parameter Store
 		// TODO: adsd AWS Secrets Manager
 		// TODO: add GCP Secrets
@@ -393,45 +409,15 @@ func TestLoad(t *testing.T) {
 				t.FailNow()
 				return
 			}
+
 			// done checking if this should have errored
 			if tc.expectedError.Err != nil {
 				return
 			}
+
 			// validate result
-			if tc.input == tc.expectedResult {
-				return
-			}
-			// otherwise use reflection to verify the results
-			var result interface{}
-			defaultConfig, isDefaultConfig := tc.input.(*exampleDefaultConfig)
-			if isDefaultConfig {
-				result = defaultConfig
-			}
-			requiredConfig, isRequiredConfig := tc.input.(*exampleRequiredConfig)
-			if isRequiredConfig {
-				result = requiredConfig
-			}
-			if !isDefaultConfig && !isRequiredConfig {
-				slog.Error("failed to convert input to config")
-				t.Fail()
-				return
-			}
-			var expectedResult interface{}
-			defaultConfig, isDefaultConfig = tc.expectedResult.(*exampleDefaultConfig)
-			if isDefaultConfig {
-				expectedResult = defaultConfig
-			}
-			requiredConfig, isRequiredConfig = tc.expectedResult.(*exampleRequiredConfig)
-			if isRequiredConfig {
-				expectedResult = requiredConfig
-			}
-			if !isDefaultConfig && !isRequiredConfig {
-				slog.Error("failed to convert expected result to config")
-				t.Fail()
-				return
-			}
-			if !reflect.DeepEqual(result, expectedResult) {
-				slog.Error("expected result does not match result", "expected result", expectedResult, "result", result)
+			if !reflect.DeepEqual(tc.input, tc.expectedResult) {
+				slog.Error("expected result does not match result", "expected result", tc.expectedResult, "result", tc.input)
 				t.Fail()
 				return
 			}
