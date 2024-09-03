@@ -10,6 +10,20 @@ import (
 	"time"
 )
 
+// setup output logger
+func setupLogger(logLevel string) *slog.Logger {
+	slogLevel := slog.LevelError
+	switch strings.ToUpper(logLevel) {
+	case slog.LevelDebug.String():
+		slogLevel = slog.LevelDebug
+	case slog.LevelInfo.String():
+		slogLevel = slog.LevelInfo
+	case slog.LevelWarn.String():
+		slogLevel = slog.LevelWarn
+	}
+	return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slogLevel}))
+}
+
 // loads the file containing the config struct(s)
 // returns the file, and any errors - does not defer closing the file
 func loadFile(fileName string) (*os.File, error) {
@@ -84,13 +98,15 @@ func generateEnvFileName(fileName string, outputPath string) string {
 	var envFileName strings.Builder
 	envFileName.WriteString(outputPath)
 	envFileName.WriteString(fileName)
+	envFileName.WriteString(".env")
 	return envFileName.String()
 }
 
 func getEnvTagFromLine(line string) string {
 	var output string
 
-	if start := strings.Index(line, `env:"`); start != -1 {
+	if startIndex := strings.Index(line, `env:"`); startIndex != -1 {
+		start := startIndex + 5
 		end := strings.Index(line[start:], `"`)
 		if end != -1 {
 			output = line[start:(start + end)]
@@ -103,7 +119,8 @@ func getEnvTagFromLine(line string) string {
 func getEnvValueFromLine(line string) string {
 	var output string
 
-	if start := strings.Index(line, `default:"`); start != -1 {
+	if startIndex := strings.Index(line, `default:"`); startIndex != -1 {
+		start := startIndex + 9
 		end := strings.Index(line[start:], `"`)
 		if end != -1 {
 			output = line[start:(start + end)]
@@ -130,8 +147,8 @@ func openNewEnvFile(configStructName string, outputDir *string) (*os.File, error
 		err = copyFile(envFileName, oldCopyFileName)
 		if err != nil {
 			slog.Error("failed to save old env file", "env file name", envFileName, "error", err)
+			return envFile, err
 		}
-		return envFile, err
 	}
 
 	envFile, err = os.Create(envFileName)
@@ -156,7 +173,7 @@ func writeEnvFileLine(envFile *os.File, envTag, envValue string) error {
 	if envLine.Len() != 0 {
 		_, err := envFile.WriteString(envLine.String())
 		if err != nil {
-			slog.Error("failed to write env file line", "line", envLine, "error", err)
+			slog.Error("failed to write env file line", "line", envLine.String(), "file", envFile, "error", err)
 			return err
 		}
 	}

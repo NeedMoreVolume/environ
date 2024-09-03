@@ -13,7 +13,7 @@ The CLI tool supports the following flags:
 
 ## Hows, whys, limitations
 
-Nobody writes OpenAPI specs by hand... right? Well, I sure don't want to create env files either. This cli tool helps to alleviate the toil in that process. Write your configuration structures, and let this do the dirty work of creating your env files with all the parameters!
+Nobody writes OpenAPI specs by hand... right? Well, I sure don't want to write env files either. This cli tool helps to alleviate the toil in that process. Write your configuration structures, and let this do the dirty work of creating your env files with all the parameters!
 
 ## Usage
 

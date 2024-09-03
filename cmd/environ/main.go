@@ -16,6 +16,7 @@ const (
 	inputFlagName      = "input"
 	outputPathFlagName = "output"
 	targetFlagName     = "target"
+	logLevelFlagName   = "v"
 
 	// regex pattern for structs
 	startStructPattern = "type .*? struct {"
@@ -26,6 +27,7 @@ var (
 	inputFileName    = flag.String(inputFlagName, "./config/config.go", "input file containing config struct(s)")
 	outputDir        = flag.String(outputPathFlagName, ".env/", "output directory to save env files for config struct(s)")
 	targetConfigName = flag.String(targetFlagName, "", "the name of a specific config structure to generate an env file for")
+	logLevel         = flag.String(logLevelFlagName, "false", "verbosity level: debug, info, warn, error. Default: error")
 )
 
 func main() {
@@ -36,24 +38,27 @@ func main() {
 		envFileOpen     bool
 		envFilesCreated []string
 		err             error
+		logger          *slog.Logger
 
 		startStructRegex = regexp.MustCompile(startStructPattern)
-		endStructRegex   = regexp.MustCompile(endStructPattern)
 	)
 
 	flag.Parse()
+	logger = setupLogger(*logLevel)
 	// if the required flags are empty, print usage and exit
 	if outputDir == nil || inputFileName == nil {
 		flag.Usage()
 		os.Exit(1)
 	}
 	// flag if we are generating a specific env file
-	hasTarget = *targetConfigName == ""
+	hasTarget = *targetConfigName != ""
 
 	// open input file to read structs from
 	inputFile, err = loadFile(*inputFileName)
 	if err != nil {
-		slog.Error("failed to load input file with config struct(s)", "error", err)
+		logger.Error("failed to load input file with config struct(s)",
+			"error", err,
+		)
 		os.Exit(1)
 	}
 
@@ -61,18 +66,31 @@ func main() {
 	lines, err := readFile(inputFile)
 	inputFile.Close()
 	if err != nil {
-		slog.Error("failed to read the file into memory", "error", err)
+		logger.Error("failed to read the file into memory",
+			"error", err,
+		)
 		os.Exit(1)
 	}
+	logger.Debug("read input file",
+		"# of lines", len(lines),
+	)
 
 	// process the file
 	for i := range lines {
 		// trim the space off the line
 		line := strings.TrimSpace(lines[i])
+		logger.Debug("processing",
+			"index", i,
+			"line", line,
+			"env file open?", envFileOpen,
+		)
 		switch {
 		case startStructRegex.MatchString(line):
 			// check if this is the desired target provided
 			configStructName := getConfigNameFromLine(line)
+			logger.Debug("start of a struct detected",
+				"struct name", configStructName,
+			)
 			if hasTarget {
 				if configStructName != *targetConfigName {
 					// skip until we find the target struct
@@ -82,16 +100,22 @@ func main() {
 			// start handling a new env file for the config struct
 			envFile, err = openNewEnvFile(configStructName, outputDir)
 			if err != nil {
-				slog.Error("failed to open the new env file", "config struct", configStructName, "error", err)
+				logger.Error("failed to open the new env file",
+					"config struct", configStructName,
+					"error", err,
+				)
 				break
 			}
 			envFileOpen = true
-		case envFileOpen && endStructRegex.MatchString(line):
+		case envFileOpen && line == endStructPattern:
 			// record the name of this file and close it
 			envFilesCreated = append(envFilesCreated, envFile.Name())
 			err = envFile.Close()
 			if err != nil {
-				slog.Error("failed to close the env file", "env file", envFilesCreated[len(envFilesCreated)-1], "error", err)
+				logger.Error("failed to close the env file",
+					"env file", envFilesCreated[len(envFilesCreated)-1],
+					"error", err,
+				)
 				break
 			}
 			envFileOpen = false
@@ -101,25 +125,32 @@ func main() {
 			value := getEnvValueFromLine(line)
 			err = writeEnvFileLine(envFile, tag, value)
 			if err != nil {
-				slog.Error("failed to write new envfile line", "tag", tag, "value", value)
+				logger.Error("failed to write new envfile line",
+					"tag", tag,
+					"value", value,
+				)
 				break
 			}
 		}
 	}
 
 	// ensure the envfile opened is closed
-	if envFileOpen {
+	if envFileOpen && envFile != nil {
 		closeErr := envFile.Close()
 		if closeErr != nil {
-			slog.Error("failed to close the env file", "error", closeErr)
+			logger.Error("failed to close the env file",
+				"error", closeErr,
+			)
 		}
 		os.Exit(2)
 	}
-	slog.Info("completed processing", "env-files created", envFilesCreated)
+	logger.Info("completed processing",
+		slog.String("files created", strings.Join(envFilesCreated, ",")),
+	)
 	// exit if we errored, instead of logging success
 	if err != nil {
 		os.Exit(2)
 	}
 
-	slog.Info("successfully processed all configs")
+	logger.Info("successfully processed all configs")
 }
