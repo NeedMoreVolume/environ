@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"errors"
 	"log/slog"
 	"os"
 	"reflect"
@@ -47,7 +48,7 @@ func TestNewEnvFileGenerator(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			envFileGenerator, err := cli.NewEnvFileGenerator(tc.flags)
-			if err != tc.expectedError {
+			if !errors.Is(err, tc.expectedError) {
 				slog.Error("error recieved and expected error do not match",
 					"recieved", err,
 					"expected", tc.expectedError,

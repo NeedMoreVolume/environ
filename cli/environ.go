@@ -12,6 +12,8 @@ import (
 var (
 	// ErrParsingFlags is returned for errors parsing the flags for the commands
 	ErrParsingFlags = errors.New("failed to parse flags")
+	// ErrMissingRequirements is returned for empty input/output flags.
+	ErrMissingRequirements = errors.New("please provide an input file and a directory to write env files")
 )
 
 // EnvFileGenerator is a struct containing the info the Environ Cli requires to generate env files
@@ -55,7 +57,7 @@ func (cli *EnvFileGenerator) CreateEnvFiles() ([]string, error) {
 	// if the required flags are empty, print usage and exit
 	if cli.OutputDir == "" || cli.StructFilename == "" {
 		flag.Usage()
-		return envFilesCreated, errors.New("please provide an input file and a directory to write env files")
+		return envFilesCreated, ErrMissingRequirements
 	}
 	// flag if we are generating a specific env file
 	hasTarget = cli.TargetConfigName != ""
