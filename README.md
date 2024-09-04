@@ -1,4 +1,4 @@
-# Environ [![Go Coverage](https://github.com/NeedMoreVolume/environ/wiki/coverage.svg)](https://raw.githack.com/wiki/NeedMoreVolume/environ/coverage.html) [![Go Report Card](https://goreportcard.com/badge/github.com/NeedMoreVolume/environ)](https://goreportcard.com/report/github.com/NeedMoreVolume/environ)
+# Environ [![Go Coverage](https://github.com/NeedMoreVolume/environ/wiki/coverage.svg)](https://raw.githack.com/wiki/NeedMoreVolume/environ/coverage.html) [![Go Report Card](https://goreportcard.com/badge/github.com/NeedMoreVolume/environ)](https://goreportcard.com/report/github.com/NeedMoreVolume/environ) [![MIT license](https://img.shields.io/badge/license-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT) [![Go.Dev reference](https://img.shields.io/badge/go.dev-reference-blue?logo=go&logoColor=white)](https://pkg.go.dev/github.com/NeedMoreVolume/environ)
 
 ## Description
 
