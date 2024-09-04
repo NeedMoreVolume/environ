@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/NeedMoreVolume/environ"
+	environ "github.com/NeedMoreVolume/environ/lib"
 )
 
 func TestErrors(t *testing.T) {
