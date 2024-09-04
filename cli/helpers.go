@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"bufio"
@@ -8,6 +8,13 @@ import (
 	"os"
 	"strings"
 	"time"
+)
+
+const (
+	// startStructPattern is the regex pattern to match struct declarations
+	startStructPattern = "type .*? struct {"
+	// endStructPattern is just a closing bracket really.
+	endStructPattern = "}"
 )
 
 // setup output logger

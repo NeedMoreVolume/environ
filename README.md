@@ -90,4 +90,8 @@ Nobody writes OpenAPI specs by hand... right? Well, I sure don't want to write e
 
 ### Usage
 
-environ -input=/path/to/file -output=/path/to/env-file-dir
+environ generate -input=/path/to/file -output=/path/to/env-file-dir
+
+exit code 1 indicates an issue with loading or reading the config file.
+exit code 2 indicates an issue with closing any files.
+exit code 3 indicates an issue with writing the env file to the desired directory.
