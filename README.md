@@ -1,14 +1,15 @@
-[![Go Coverage](https://github.com/NeedMoreVolume/environ/wiki/coverage.svg)](https://raw.githack.com/wiki/NeedMoreVolume/environ/coverage.html)
+# Environ [![Go Coverage](https://github.com/NeedMoreVolume/environ/wiki/coverage.svg)](https://raw.githack.com/wiki/NeedMoreVolume/environ/coverage.html) [![Go Report Card](https://goreportcard.com/badge/github.com/NeedMoreVolume/environ)](https://goreportcard.com/report/github.com/NeedMoreVolume/environ)
 
-# Environ
-
-## Library
+## Description
 
 There are two main components of environ. The library which facilitates config management in code, and the CLI tool to facilitate environment management.
-This is the library documentation.
-The CLI tool documentation can be found in the README in the cmd/environ directory.
+The Library documentation can be found in the [Library Section](#library)
+The CLI tool documentation can be found in the [CLI Section](#cli).
 
-### Tags
+### Library
+Here begins the documentation for how to use the library portion of this repo.
+
+#### Tags
 
 The library supports the following tags:
 -  `env`: used to denote the key for loading an environment variable value 
@@ -17,7 +18,7 @@ The library supports the following tags:
 - `separator`: used to override the default `,` separator for slice elements and map items.
 - `kv_separator`: used to override the default `:` separator for key value pairs of map items.
 
-### Hows, whys, limitations
+#### Hows, whys, limitations
 
 This library uses reflection to read attribute tags and set the values of the attributes of a provided struct accordingly.
 
@@ -27,11 +28,11 @@ This library also provides a more detailed error structure, providing a Key and 
 
 Currently, the noteworthy limitations of this library are that config files are not supported, and maps of slices are not supported (IE: `map[string][]string`).
 
-### Usage
+#### Usage
 
 To use this library, just make a configuration struct with any of the above tags and then pass a pointer of one in the Load call.
 
-#### Example
+##### Example
 
 The following is an example of a simple Mysql config that contains the necessary information to open a DB connection.
 ```
@@ -53,7 +54,7 @@ func main() {
    		// handle error
 	}
 
-    	// can also take the errors.As approach
+    // can also take the errors.As approach
 	var envErr *environ.EnvError
 	if errors.As(err, &envErr) {
 		// handle EnvError
@@ -62,12 +63,29 @@ func main() {
 ```
 This config would fail to load if any of the username, password, or host values are not loaded successfully from a given environment.
 
-### Supported locations to load values from
+#### Supported locations to load values from
 
 Default values, supported by `default` tags
 
 Environment variables, suppported by `env` tags
 
-## CLI
+More to come!
 
-See the README in cmd/environ for more.
+### CLI
+
+The environ CLI tool helps facilirate good developer experience when creating new configurations for applications. Currently, this tool is capable of taking a file containing configuration structs to create a series of env files with default values for each field of the structure.
+
+#### Supported flags
+
+The CLI tool supports the following flags:
+- `input`: used to denote the location and filename to load the golang structs to create env files for/ Default: ./config/config.go
+- `output`: used to denote the directory to save the env files. Default: .env/
+- `target`: used to generate only a single env file for a given config name.
+
+#### Hows, whys, limitations
+
+Nobody writes OpenAPI specs by hand... right? Well, I sure don't want to write env files either. This cli tool helps to alleviate the toil in that process. Write your configuration structures, and let this do the dirty work of creating your env files with all the parameters!
+
+#### Usage
+
+environ -input=/path/to/file -output=/path/to/env-file-dir
