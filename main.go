@@ -51,7 +51,7 @@ func Load(config any) error {
 func validateConfig(config any) (reflect.Value, error) {
 	var output reflect.Value
 	ptrRef := reflect.ValueOf(config)
-	if ptrRef.Kind() != reflect.Ptr {
+	if ptrRef.Kind() != 	reflect.Pointer {
 		return output, newError(ErrInvalidInput, "config", "must be provided a pointer to a struct")
 	}
 	output = ptrRef.Elem()
@@ -222,52 +222,7 @@ func setValue(structField reflect.StructField, param reflect.Value, value string
 		param.SetUint(val)
 	case reflect.Struct:
 		if param.Type() == reflect.TypeOf(time.Time{}) {
-			var t time.Time
-			timeFormat := getTimeFormat(structField.Tag)
-			switch timeFormat {
-			case unixFormatValue:
-				ts, err := strconv.ParseInt(value, 10, 64)
-				if err != nil {
-					return newError(ErrInvalidFormat, structField.Name, "value is not a valid time representation")
-				}
-				t = time.Unix(ts, 0)
-			case unixMilliFormatValue:
-				ts, err := strconv.ParseInt(value, 10, 64)
-				if err != nil {
-					return newError(ErrInvalidFormat, structField.Name, "value is not a valid time representation")
-				}
-				t = time.UnixMilli(ts)
-			case unixNanoFormatValue:
-				ts, err := strconv.ParseInt(value, 10, 64)
-				if err != nil {
-					return newError(ErrInvalidFormat, structField.Name, "value is not a valid time representation")
-				}
-				t = time.Unix(0, ts)
-			default:
-				var err error
-				t, err = time.Parse(timeFormat, value)
-				if err != nil {
-					testFormats := []string{
-						"2006-01-02T15:04:05Z07:00",
-						"2006-01-02",
-						"2006-01-02T15:04:05Z",
-						"2006-01-02T15:04:05",
-					}
-					isValid := false
-					for _, f := range testFormats {
-						if _, parseErr := time.Parse(timeFormat, f); parseErr == nil {
-							isValid = true
-							break
-						}
-					}
-					if !isValid {
-						return newError(ErrInvalidFormat, structField.Name, "time_format is not a valid time format for parsing, see https://pkg.go.dev/time#Parse")
-					}
-					return newError(ErrInvalidFormat, structField.Name, "value is not a valid time representation")
-				}
-			}
-			param.Set(reflect.ValueOf(t.UTC()))
-			return nil
+			return setTimeValue(structField, param, value)
 		}
 
 		fallthrough
@@ -294,6 +249,54 @@ func getKvSeparator(structTag reflect.StructTag) string {
 		separator = s
 	}
 	return separator
+}
+
+func setTimeValue(structField reflect.StructField, param reflect.Value, value string) error {
+	var t time.Time
+	timeFormat := getTimeFormat(structField.Tag)
+	switch timeFormat {
+	case unixFormatValue:
+		ts, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return newError(ErrInvalidFormat, structField.Name, "value is not a valid time representation")
+		}
+		t = time.Unix(ts, 0)
+	case unixMilliFormatValue:
+		ts, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return newError(ErrInvalidFormat, structField.Name, "value is not a valid time representation")
+		}
+		t = time.UnixMilli(ts)
+	case unixNanoFormatValue:
+		ts, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return newError(ErrInvalidFormat, structField.Name, "value is not a valid time representation")
+		}
+		t = time.Unix(0, ts)
+	default:
+		var err error
+		t, err = time.Parse(timeFormat, value)
+		if err != nil {
+			return newTimeFormatError(structField, timeFormat)
+		}
+	}
+	param.Set(reflect.ValueOf(t.UTC()))
+	return nil
+}
+
+func newTimeFormatError(structField reflect.StructField, timeFormat string) error {
+	testFormats := []string{
+		"2006-01-02T15:04:05Z07:00",
+		"2006-01-02",
+		"2006-01-02T15:04:05Z",
+		"2006-01-02T15:04:05",
+	}
+	for _, f := range testFormats {
+		if _, parseErr := time.Parse(timeFormat, f); parseErr == nil {
+			return newError(ErrInvalidFormat, structField.Name, "value is not a valid time representation")
+		}
+	}
+	return newError(ErrInvalidFormat, structField.Name, "time_format is not a valid time format for parsing, see https://pkg.go.dev/time#Parse")
 }
 
 func getTimeFormat(structTag reflect.StructTag) string {

@@ -11,8 +11,13 @@ import (
 	"github.com/NeedMoreVolume/environ"
 )
 
-var testTime = time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
-var testTime2 = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+var (
+	testTime  = time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+	testTime2 = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	errIntRep  = "value is not a valid integer representation"
+	errTimeRep = "value is not a valid time representation"
+)
 
 type exampleDefaultConfig struct {
 	// INTS
@@ -255,7 +260,7 @@ func TestLoad(t *testing.T) {
 			expectedError: environ.EnvError{
 				Err:   environ.ErrInvalidFormat,
 				Key:   "Int",
-				Extra: "value is not a valid integer representation",
+				Extra: errIntRep,
 			},
 			clean: func() {
 				os.Unsetenv("MY_INT")
@@ -325,7 +330,7 @@ func TestLoad(t *testing.T) {
 			expectedError: environ.EnvError{
 				Err:   environ.ErrInvalidFormat,
 				Key:   "MapWithCustomSeps",
-				Extra: "value is not a valid integer representation",
+				Extra: errIntRep,
 			},
 			clean: func() {
 				os.Unsetenv("MY_CUSTOM_MAP")
@@ -339,7 +344,7 @@ func TestLoad(t *testing.T) {
 			expectedError: environ.EnvError{
 				Err:   environ.ErrInvalidFormat,
 				Key:   "MapWithCustomSeps",
-				Extra: "value is not a valid integer representation",
+				Extra: errIntRep,
 			},
 			clean: func() {
 				os.Unsetenv("MY_CUSTOM_MAP")
@@ -353,7 +358,7 @@ func TestLoad(t *testing.T) {
 			expectedError: environ.EnvError{
 				Err:   environ.ErrInvalidFormat,
 				Key:   "SliceWithCustomSep",
-				Extra: "value is not a valid integer representation",
+				Extra: errIntRep,
 			},
 			clean: func() {
 				os.Unsetenv("MY_CUSTOM_SLICE")
@@ -375,7 +380,7 @@ func TestLoad(t *testing.T) {
 			expectedError: environ.EnvError{
 				Err:   environ.ErrInvalidFormat,
 				Key:   "Time",
-				Extra: "value is not a valid time representation",
+				Extra: errTimeRep,
 			},
 			clean: func() {
 				os.Unsetenv("MY_TIME")
@@ -389,7 +394,7 @@ func TestLoad(t *testing.T) {
 			expectedError: environ.EnvError{
 				Err:   environ.ErrInvalidFormat,
 				Key:   "CustomTime",
-				Extra: "value is not a valid time representation",
+				Extra: errTimeRep,
 			},
 			clean: func() {
 				os.Unsetenv("MY_CUSTOM_TIME")
@@ -403,7 +408,7 @@ func TestLoad(t *testing.T) {
 			expectedError: environ.EnvError{
 				Err:   environ.ErrInvalidFormat,
 				Key:   "CustomTime2",
-				Extra: "value is not a valid time representation",
+				Extra: errTimeRep,
 			},
 			clean: func() {
 				os.Unsetenv("MY_CUSTOM_TIME_2")
@@ -417,7 +422,7 @@ func TestLoad(t *testing.T) {
 			expectedError: environ.EnvError{
 				Err:   environ.ErrInvalidFormat,
 				Key:   "CustomTime3",
-				Extra: "value is not a valid time representation",
+				Extra: errTimeRep,
 			},
 			clean: func() {
 				os.Unsetenv("MY_CUSTOM_TIME_3")
