@@ -51,7 +51,7 @@ func Load(config any) error {
 func validateConfig(config any) (reflect.Value, error) {
 	var output reflect.Value
 	ptrRef := reflect.ValueOf(config)
-	if ptrRef.Kind() != 	reflect.Pointer {
+	if ptrRef.Kind() != reflect.Pointer {
 		return output, newError(ErrInvalidInput, "config", "must be provided a pointer to a struct")
 	}
 	output = ptrRef.Elem()
