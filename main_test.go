@@ -71,7 +71,7 @@ type badExampleConfig struct {
 }
 
 type badExampleTimeFormat struct {
-	CustomTime time.Time `env:"MY_BAD_TIME" time_format:"bad"`
+	CustomTime time.Time `env:"MY_BAD_TIME" time_format:"bad" default:"2023-01-01T00:00:00Z"`
 }
 
 type unsupportedTypeConfig struct {
@@ -80,6 +80,14 @@ type unsupportedTypeConfig struct {
 
 type mapWithCsvString struct {
 	Map map[string]string `env:"MY_MAP" separator:"|"`
+}
+
+type structMapItem struct {
+	A string
+}
+
+type configWithStructMap struct {
+	Map map[string]structMapItem `env:"MY_STRUCT_MAP" default:"key:value"`
 }
 
 func unsetTestEnv() {
@@ -369,6 +377,9 @@ func TestLoad(t *testing.T) {
 				Key:   "Time",
 				Extra: "value is not a valid time representation",
 			},
+			clean: func() {
+				os.Unsetenv("MY_TIME")
+			},
 		},
 		"with bad unix time value": {
 			prep: func() {
@@ -379,6 +390,9 @@ func TestLoad(t *testing.T) {
 				Err:   environ.ErrInvalidFormat,
 				Key:   "CustomTime",
 				Extra: "value is not a valid time representation",
+			},
+			clean: func() {
+				os.Unsetenv("MY_CUSTOM_TIME")
 			},
 		},
 		"with bad unix_milli time value": {
@@ -391,6 +405,9 @@ func TestLoad(t *testing.T) {
 				Key:   "CustomTime2",
 				Extra: "value is not a valid time representation",
 			},
+			clean: func() {
+				os.Unsetenv("MY_CUSTOM_TIME_2")
+			},
 		},
 		"with bad nano time value": {
 			prep: func() {
@@ -401,6 +418,9 @@ func TestLoad(t *testing.T) {
 				Err:   environ.ErrInvalidFormat,
 				Key:   "CustomTime3",
 				Extra: "value is not a valid time representation",
+			},
+			clean: func() {
+				os.Unsetenv("MY_CUSTOM_TIME_3")
 			},
 		},
 		"with required value set": {
@@ -462,10 +482,14 @@ func TestLoad(t *testing.T) {
 				os.Unsetenv("MY_MAP")
 			},
 		},
-		// TODO: add AWS Parameter Store
-		// TODO: adsd AWS Secrets Manager
-		// TODO: add GCP Secrets
-		// TODO: add Swift Object Store
+		"with unsupported struct type in map value": {
+			input: &configWithStructMap{},
+			expectedError: environ.EnvError{
+				Err:   environ.ErrUnsupportedType,
+				Key:   "Map",
+				Extra: "provided type is not supported in this version",
+			},
+		},
 	}
 
 	for name, tc := range testCases {

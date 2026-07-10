@@ -1,7 +1,6 @@
 package environ
 
 import (
-	"log"
 	"os"
 	"reflect"
 	"strconv"
@@ -245,23 +244,37 @@ func setValue(structField reflect.StructField, param reflect.Value, value string
 				}
 				t = time.Unix(0, ts)
 			default:
-				log.Println("time format? ", timeFormat)
-				_, err := time.Parse(timeFormat, timeFormat)
-				if err != nil {
-					return newError(ErrInvalidFormat, structField.Name, "time_format is not a valid time format for parsing, see https://pkg.go.dev/time#Parse")
-				}
+				var err error
 				t, err = time.Parse(timeFormat, value)
 				if err != nil {
+					testFormats := []string{
+						"2006-01-02T15:04:05Z07:00",
+						"2006-01-02",
+						"2006-01-02T15:04:05Z",
+						"2006-01-02T15:04:05",
+					}
+					isValid := false
+					for _, f := range testFormats {
+						if _, parseErr := time.Parse(timeFormat, f); parseErr == nil {
+							isValid = true
+							break
+						}
+					}
+					if !isValid {
+						return newError(ErrInvalidFormat, structField.Name, "time_format is not a valid time format for parsing, see https://pkg.go.dev/time#Parse")
+					}
 					return newError(ErrInvalidFormat, structField.Name, "value is not a valid time representation")
 				}
 			}
-			param.Set(reflect.ValueOf(t))
+			param.Set(reflect.ValueOf(t.UTC()))
 			return nil
 		}
+
 		fallthrough
 	default:
 		return newError(ErrUnsupportedType, structField.Name, "provided type is not supported in this version")
 	}
+
 	return nil
 }
 

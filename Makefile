@@ -25,5 +25,5 @@ test-setup:
 #	run tests
 #	generate new test artifacts in the test-output-dir
 test:
-	go test -cover -coverprofile=$(test-output-dir)/coverage.out -v ./... > $(test-output-dir)/test-run.log
+	go test -count=1 -cover -coverprofile=$(test-output-dir)/coverage.out -v ./... > $(test-output-dir)/test-run.log
 	go tool cover -html=$(test-output-dir)/coverage.out -o $(test-output-dir)/coverage.html
