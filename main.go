@@ -1,6 +1,7 @@
 package environ
 
 import (
+	"log"
 	"os"
 	"reflect"
 	"strconv"
@@ -19,8 +20,12 @@ const (
 	requiredTag = "required" // used to set requirements for env params, bool: causes errors when not loaded
 
 	// formatting tags
-	separatorTag   = "separator"    // used to select custom separators for slices and map items
-	kvSeparatorTag = "kv_separator" // used to select custom separators for key value pairs in maps
+	separatorTag         = "separator"    // used to select custom separators for slices and map items
+	kvSeparatorTag       = "kv_separator" // used to select custom separators for key value pairs in maps
+	timeFormatTag        = "time_format"  // used to select time format for time values
+	unixFormatValue      = "unix"         // used to flag that a time value should be parsed from a unix timestamp
+	unixMilliFormatValue = "unix_milli"   // used to flag that a time value should be parsed from a unix millisecond timestamp
+	unixNanoFormatValue  = "unix_nano"    // used to flag that a tinme value should be parsed from a unix nanosecond timestamp
 
 	// defaults
 	defaultSeparator   = ","
@@ -73,7 +78,11 @@ func handleStruct(input reflect.Value) error {
 		}
 		switch field.Kind() {
 		case reflect.Struct:
-			err = handleStruct(field)
+			if field.Type() == reflect.TypeOf(time.Time{}) {
+				err = handleField(field, structField)
+			} else {
+				err = handleStruct(field)
+			}
 		default:
 			err = handleField(field, structField)
 		}
@@ -212,6 +221,44 @@ func setValue(structField reflect.StructField, param reflect.Value, value string
 			return newError(ErrInvalidFormat, structField.Name, "value is not a valid uint representation")
 		}
 		param.SetUint(val)
+	case reflect.Struct:
+		if param.Type() == reflect.TypeOf(time.Time{}) {
+			var t time.Time
+			timeFormat := getTimeFormat(structField.Tag)
+			switch timeFormat {
+			case unixFormatValue:
+				ts, err := strconv.ParseInt(value, 10, 64)
+				if err != nil {
+					return newError(ErrInvalidFormat, structField.Name, "value is not a valid time representation")
+				}
+				t = time.Unix(ts, 0)
+			case unixMilliFormatValue:
+				ts, err := strconv.ParseInt(value, 10, 64)
+				if err != nil {
+					return newError(ErrInvalidFormat, structField.Name, "value is not a valid time representation")
+				}
+				t = time.UnixMilli(ts)
+			case unixNanoFormatValue:
+				ts, err := strconv.ParseInt(value, 10, 64)
+				if err != nil {
+					return newError(ErrInvalidFormat, structField.Name, "value is not a valid time representation")
+				}
+				t = time.Unix(0, ts)
+			default:
+				log.Println("time format? ", timeFormat)
+				_, err := time.Parse(timeFormat, timeFormat)
+				if err != nil {
+					return newError(ErrInvalidFormat, structField.Name, "time_format is not a valid time format for parsing, see https://pkg.go.dev/time#Parse")
+				}
+				t, err = time.Parse(timeFormat, value)
+				if err != nil {
+					return newError(ErrInvalidFormat, structField.Name, "value is not a valid time representation")
+				}
+			}
+			param.Set(reflect.ValueOf(t))
+			return nil
+		}
+		fallthrough
 	default:
 		return newError(ErrUnsupportedType, structField.Name, "provided type is not supported in this version")
 	}
@@ -234,4 +281,11 @@ func getKvSeparator(structTag reflect.StructTag) string {
 		separator = s
 	}
 	return separator
+}
+
+func getTimeFormat(structTag reflect.StructTag) string {
+	if format, ok := structTag.Lookup(timeFormatTag); ok {
+		return format
+	}
+	return time.RFC3339
 }
