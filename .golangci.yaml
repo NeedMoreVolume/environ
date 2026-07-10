@@ -1,23 +1,36 @@
+version: "2"
 linters:
   enable:
-  - errcheck
-  - gosimple
-  - govet
-  - ineffassign
-  - staticcheck
-  - unused
-  - asasalint
-  - bidichk
-  - copyloopvar
-  - decorder
-  - err113
-  - errname
-  - errorlint
-  - goconst
-  - gocritic
-  - gocyclo
-  - gosec
-  - prealloc
-  - predeclared
-  - revive
-  - wastedassign
+    - asasalint
+    - bidichk
+    - copyloopvar
+    - decorder
+    - err113
+    - errname
+    - errorlint
+    - goconst
+    - gocritic
+    - gocyclo
+    - gosec
+    - prealloc
+    - predeclared
+    - revive
+    - wastedassign
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

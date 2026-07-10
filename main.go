@@ -19,8 +19,12 @@ const (
 	requiredTag = "required" // used to set requirements for env params, bool: causes errors when not loaded
 
 	// formatting tags
-	separatorTag   = "separator"    // used to select custom separators for slices and map items
-	kvSeparatorTag = "kv_separator" // used to select custom separators for key value pairs in maps
+	separatorTag         = "separator"    // used to select custom separators for slices and map items
+	kvSeparatorTag       = "kv_separator" // used to select custom separators for key value pairs in maps
+	timeFormatTag        = "time_format"  // used to select time format for time values
+	unixFormatValue      = "unix"         // used to flag that a time value should be parsed from a unix timestamp
+	unixMilliFormatValue = "unix_milli"   // used to flag that a time value should be parsed from a unix millisecond timestamp
+	unixNanoFormatValue  = "unix_nano"    // used to flag that a tinme value should be parsed from a unix nanosecond timestamp
 
 	// defaults
 	defaultSeparator   = ","
@@ -47,7 +51,7 @@ func Load(config any) error {
 func validateConfig(config any) (reflect.Value, error) {
 	var output reflect.Value
 	ptrRef := reflect.ValueOf(config)
-	if ptrRef.Kind() != reflect.Ptr {
+	if ptrRef.Kind() != reflect.Pointer {
 		return output, newError(ErrInvalidInput, "config", "must be provided a pointer to a struct")
 	}
 	output = ptrRef.Elem()
@@ -73,7 +77,11 @@ func handleStruct(input reflect.Value) error {
 		}
 		switch field.Kind() {
 		case reflect.Struct:
-			err = handleStruct(field)
+			if field.Type() == reflect.TypeOf(time.Time{}) {
+				err = handleField(field, structField)
+			} else {
+				err = handleStruct(field)
+			}
 		default:
 			err = handleField(field, structField)
 		}
@@ -212,9 +220,16 @@ func setValue(structField reflect.StructField, param reflect.Value, value string
 			return newError(ErrInvalidFormat, structField.Name, "value is not a valid uint representation")
 		}
 		param.SetUint(val)
+	case reflect.Struct:
+		if param.Type() == reflect.TypeOf(time.Time{}) {
+			return setTimeValue(structField, param, value)
+		}
+
+		fallthrough
 	default:
 		return newError(ErrUnsupportedType, structField.Name, "provided type is not supported in this version")
 	}
+
 	return nil
 }
 
@@ -235,3 +250,68 @@ func getKvSeparator(structTag reflect.StructTag) string {
 	}
 	return separator
 }
+
+func setTimeValue(structField reflect.StructField, param reflect.Value, value string) error {
+	var t time.Time
+	timeFormat := getTimeFormat(structField.Tag)
+	switch timeFormat {
+	case unixFormatValue:
+		ts, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return newError(ErrInvalidFormat, structField.Name, "value is not a valid time representation")
+		}
+		t = time.Unix(ts, 0)
+	case unixMilliFormatValue:
+		ts, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return newError(ErrInvalidFormat, structField.Name, "value is not a valid time representation")
+		}
+		t = time.UnixMilli(ts)
+	case unixNanoFormatValue:
+		ts, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return newError(ErrInvalidFormat, structField.Name, "value is not a valid time representation")
+		}
+		t = time.Unix(0, ts)
+	default:
+		if !hasTimeRefTokens(timeFormat) {
+			return newError(ErrInvalidFormat, structField.Name, "time_format is not a valid time format for parsing, see https://pkg.go.dev/time#Parse")
+		}
+		var err error
+		t, err = time.Parse(timeFormat, value)
+		if err != nil {
+			return newError(ErrInvalidFormat, structField.Name, "value is not a valid time representation")
+		}
+	}
+	param.Set(reflect.ValueOf(t.UTC()))
+	return nil
+}
+
+func hasTimeRefTokens(layout string) bool {
+	refTokens := []string{
+		"2006", "06",
+		"01", "1", "Jan", "January",
+		"02", "_2", "2", "Mon", "Monday",
+		"15", "3", "03",
+		"04", "4",
+		"05", "5",
+		"PM", "pm",
+		"MST",
+		"-0700", "-07:00", "-07", "Z0700", "Z07:00", "Z07",
+	}
+	for _, t := range refTokens {
+		if strings.Contains(layout, t) {
+			return true
+		}
+	}
+	return false
+}
+
+func getTimeFormat(structTag reflect.StructTag) string {
+	if format, ok := structTag.Lookup(timeFormatTag); ok {
+		return format
+	}
+	return time.RFC3339
+}
+
+

@@ -11,6 +11,14 @@ import (
 	"github.com/NeedMoreVolume/environ"
 )
 
+var (
+	testTime  = time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
+	testTime2 = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	errIntRep  = "value is not a valid integer representation"
+	errTimeRep = "value is not a valid time representation"
+)
+
 type exampleDefaultConfig struct {
 	// INTS
 	Int   int   `env:"MY_INT" default:"1"`
@@ -41,6 +49,12 @@ type exampleDefaultConfig struct {
 	Slice              []string `env:"MY_SLICE" default:"1,2,3,4"`
 	SliceWithCustomSep []int    `env:"MY_CUSTOM_SLICE" separator:"|" default:"1|2|3|4"`
 
+	DefaultTime time.Time `env:"MY_DEFAULT_TIME" default:"2023-01-01T00:00:00Z"`
+	Time        time.Time `env:"MY_TIME" time_format:"2006-01-02T15:04:05Z07:00" default:"2023-01-01T00:00:00Z"`
+	CustomTime  time.Time `env:"MY_CUSTOM_TIME" time_format:"unix" default:"1672531200"`
+	CustomTime2 time.Time `env:"MY_CUSTOM_TIME_2" time_format:"unix_milli" default:"1672531200000"`
+	CustomTime3 time.Time `env:"MY_CUSTOM_TIME_3" time_format:"unix_nano" default:"1672531200000000000"`
+
 	NestedConfig exampleNestedConfig
 }
 
@@ -61,12 +75,24 @@ type badExampleConfig struct {
 	unexportedField string `env:"MY_UNEXPORTED_VAR"`
 }
 
+type badExampleTimeFormat struct {
+	CustomTime time.Time `env:"MY_BAD_TIME" time_format:"bad" default:"2023-01-01T00:00:00Z"`
+}
+
 type unsupportedTypeConfig struct {
 	UnsupportedType func() `env:"MY_UNSUPPORTED_TYPE" default:"not supported"`
 }
 
 type mapWithCsvString struct {
 	Map map[string]string `env:"MY_MAP" separator:"|"`
+}
+
+type structMapItem struct {
+	A string
+}
+
+type configWithStructMap struct {
+	Map map[string]structMapItem `env:"MY_STRUCT_MAP" default:"key:value"`
 }
 
 func unsetTestEnv() {
@@ -90,6 +116,11 @@ func unsetTestEnv() {
 	os.Unsetenv("MY_CUSTOM_MAP")
 	os.Unsetenv("MY_SLICE")
 	os.Unsetenv("MY_CUSTOM_SLICE")
+	os.Unsetenv("MY_DEFAULT_TIME")
+	os.Unsetenv("MY_TIME")
+	os.Unsetenv("MY_CUSTOM_TIME")
+	os.Unsetenv("MY_CUSTOM_TIME_2")
+	os.Unsetenv("MY_CUSTOM_TIME_3")
 	os.Unsetenv("MY_CONFIG.A")
 	os.Unsetenv("B")
 }
@@ -146,6 +177,11 @@ func TestLoad(t *testing.T) {
 				MapWithCustomSeps:   map[int]int{1: 2, 3: 4},
 				Slice:               []string{"1", "2", "3", "4"},
 				SliceWithCustomSep:  []int{1, 2, 3, 4},
+				DefaultTime:         testTime,
+				Time:                testTime,
+				CustomTime:          testTime,
+				CustomTime2:         testTime,
+				CustomTime3:         testTime,
 				NestedConfig: exampleNestedConfig{
 					A: "nest_1",
 				},
@@ -174,6 +210,11 @@ func TestLoad(t *testing.T) {
 				os.Setenv("MY_CUSTOM_MAP", "100-200:300-400")
 				os.Setenv("MY_SLICE", "9,8,7,6")
 				os.Setenv("MY_CUSTOM_SLICE", "5|4|3|2")
+				os.Setenv("MY_DEFAULT_TIME", "2026-01-01T00:00:00Z")
+				os.Setenv("MY_TIME", "2026-01-01T00:00:00Z")
+				os.Setenv("MY_CUSTOM_TIME", "1767225600")
+				os.Setenv("MY_CUSTOM_TIME_2", "1767225600000")
+				os.Setenv("MY_CUSTOM_TIME_3", "1767225600000000000")
 				os.Setenv("MY_CONFIG.A", "nested config value")
 				os.Setenv("B", "4")
 			},
@@ -199,6 +240,11 @@ func TestLoad(t *testing.T) {
 				MapWithCustomSeps:   map[int]int{100: 200, 300: 400},
 				Slice:               []string{"9", "8", "7", "6"},
 				SliceWithCustomSep:  []int{5, 4, 3, 2},
+				DefaultTime:         testTime2,
+				Time:                testTime2,
+				CustomTime:          testTime2,
+				CustomTime2:         testTime2,
+				CustomTime3:         testTime2,
 				NestedConfig: exampleNestedConfig{
 					A: "nested config value",
 					B: 4,
@@ -214,7 +260,7 @@ func TestLoad(t *testing.T) {
 			expectedError: environ.EnvError{
 				Err:   environ.ErrInvalidFormat,
 				Key:   "Int",
-				Extra: "value is not a valid integer representation",
+				Extra: errIntRep,
 			},
 			clean: func() {
 				os.Unsetenv("MY_INT")
@@ -284,7 +330,7 @@ func TestLoad(t *testing.T) {
 			expectedError: environ.EnvError{
 				Err:   environ.ErrInvalidFormat,
 				Key:   "MapWithCustomSeps",
-				Extra: "value is not a valid integer representation",
+				Extra: errIntRep,
 			},
 			clean: func() {
 				os.Unsetenv("MY_CUSTOM_MAP")
@@ -298,7 +344,7 @@ func TestLoad(t *testing.T) {
 			expectedError: environ.EnvError{
 				Err:   environ.ErrInvalidFormat,
 				Key:   "MapWithCustomSeps",
-				Extra: "value is not a valid integer representation",
+				Extra: errIntRep,
 			},
 			clean: func() {
 				os.Unsetenv("MY_CUSTOM_MAP")
@@ -312,10 +358,74 @@ func TestLoad(t *testing.T) {
 			expectedError: environ.EnvError{
 				Err:   environ.ErrInvalidFormat,
 				Key:   "SliceWithCustomSep",
-				Extra: "value is not a valid integer representation",
+				Extra: errIntRep,
 			},
 			clean: func() {
 				os.Unsetenv("MY_CUSTOM_SLICE")
+			},
+		},
+		"with bad time format": {
+			input: &badExampleTimeFormat{},
+			expectedError: environ.EnvError{
+				Err:   environ.ErrInvalidFormat,
+				Key:   "CustomTime",
+				Extra: "time_format is not a valid time format for parsing, see https://pkg.go.dev/time#Parse",
+			},
+		},
+		"with bad time value": {
+			prep: func() {
+				os.Setenv("MY_TIME", "bad")
+			},
+			input: &exampleDefaultConfig{},
+			expectedError: environ.EnvError{
+				Err:   environ.ErrInvalidFormat,
+				Key:   "Time",
+				Extra: errTimeRep,
+			},
+			clean: func() {
+				os.Unsetenv("MY_TIME")
+			},
+		},
+		"with bad unix time value": {
+			prep: func() {
+				os.Setenv("MY_CUSTOM_TIME", "bad")
+			},
+			input: &exampleDefaultConfig{},
+			expectedError: environ.EnvError{
+				Err:   environ.ErrInvalidFormat,
+				Key:   "CustomTime",
+				Extra: errTimeRep,
+			},
+			clean: func() {
+				os.Unsetenv("MY_CUSTOM_TIME")
+			},
+		},
+		"with bad unix_milli time value": {
+			prep: func() {
+				os.Setenv("MY_CUSTOM_TIME_2", "bad")
+			},
+			input: &exampleDefaultConfig{},
+			expectedError: environ.EnvError{
+				Err:   environ.ErrInvalidFormat,
+				Key:   "CustomTime2",
+				Extra: errTimeRep,
+			},
+			clean: func() {
+				os.Unsetenv("MY_CUSTOM_TIME_2")
+			},
+		},
+		"with bad nano time value": {
+			prep: func() {
+				os.Setenv("MY_CUSTOM_TIME_3", "bad")
+			},
+			input: &exampleDefaultConfig{},
+			expectedError: environ.EnvError{
+				Err:   environ.ErrInvalidFormat,
+				Key:   "CustomTime3",
+				Extra: errTimeRep,
+			},
+			clean: func() {
+				os.Unsetenv("MY_CUSTOM_TIME_3")
 			},
 		},
 		"with required value set": {
@@ -377,10 +487,14 @@ func TestLoad(t *testing.T) {
 				os.Unsetenv("MY_MAP")
 			},
 		},
-		// TODO: add AWS Parameter Store
-		// TODO: adsd AWS Secrets Manager
-		// TODO: add GCP Secrets
-		// TODO: add Swift Object Store
+		"with unsupported struct type in map value": {
+			input: &configWithStructMap{},
+			expectedError: environ.EnvError{
+				Err:   environ.ErrUnsupportedType,
+				Key:   "Map",
+				Extra: "provided type is not supported in this version",
+			},
+		},
 	}
 
 	for name, tc := range testCases {

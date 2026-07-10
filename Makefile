@@ -7,7 +7,7 @@ all: init test-setup test
 # target to initialize the directories needed for other targets ensuring linter is installed for lint directive
 init:
 	mkdir $(test-output-dir)
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.60.3
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
 
 lint:
 	golangci-lint run --config .\.golangci.yaml -v
@@ -25,5 +25,5 @@ test-setup:
 #	run tests
 #	generate new test artifacts in the test-output-dir
 test:
-	go test -cover -coverprofile=$(test-output-dir)/coverage.out -v ./... > $(test-output-dir)/test-run.log
+	go test -count=1 -cover -coverprofile=$(test-output-dir)/coverage.out -v ./... > $(test-output-dir)/test-run.log
 	go tool cover -html=$(test-output-dir)/coverage.out -o $(test-output-dir)/coverage.html

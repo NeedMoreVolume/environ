@@ -18,7 +18,7 @@
 	"workspaceFolder": "/workspace/environ",
 	"features": {
 		"ghcr.io/devcontainers/features/go:1": {
-			"version": "1.22"
+			"version": "1.25"
 		}
 	},
 
