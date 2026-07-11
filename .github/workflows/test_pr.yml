@@ -6,7 +6,8 @@ permissions:
     # Required: allow read access to the content for golangci-lint analysis.
     contents: read
     # Optional: allow write access to checks to allow the action to annotate code in the PR.
-    checks: write  
+    checks: write
+    actions: write
 
 jobs:
   lint:
@@ -41,7 +42,7 @@ jobs:
       - name: Print test run
         run: cat .test/test-run.log
       - name: Save artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v6
         with:
           name: artifacts
           path: .test/
