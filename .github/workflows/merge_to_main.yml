@@ -6,13 +6,10 @@ on:
 
 permissions: 
   contents: write
-  actions: write
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    outputs:
-      run_id: ${{ github.run_id }}
     steps:
       - uses: actions/checkout@v5
       - name: Setup Go
@@ -27,23 +24,11 @@ jobs:
       - name: Run tests
         run: make test
         continue-on-error: false
-      - name: List test output
-        run: ls -la .test/
-      - name: Save artifacts
-        uses: actions/upload-artifact@v6
-        with:
-          name: artifacts
-          path: .test/**
   coverage:
     runs-on: ubuntu-latest
     needs: test
     steps:
-      - uses: actions/download-artifact@v6
-        with:
-          name: artifacts
-          path: .test/
-      - name: Update coverage report
-        uses: ncruces/go-coverage-report@v0.3.1
+      - uses: ncruces/go-coverage-report@v0.3.1
         with:
           report: true
           chart: true
