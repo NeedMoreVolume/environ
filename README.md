@@ -57,6 +57,53 @@ func main() {
 ```
 This config would fail to load if any of the username, password, or host values are not loaded successfully from a given environment.
 
+### Custom Types with TextUnmarshaler
+
+Environ supports any type that implements `encoding.TextUnmarshaler`. This allows you to use custom types — such as third-party types like `jwt.SigningMethod` — directly in your config structs.
+
+To bring your own `TextUnmarshaler`, wrap the type in a named type and implement `UnmarshalText([]byte) error`:
+
+```go
+import (
+    "encoding/json"
+    "fmt"
+
+    "github.com/golang-jwt/jwt/v5"
+    "github.com/NeedMoreVolume/environ"
+)
+
+// SigningMethod wraps jwt.SigningMethod to implement TextUnmarshaler.
+type SigningMethod struct {
+    jwt.SigningMethod
+}
+
+func (s *SigningMethod) UnmarshalText(text []byte) error {
+    name := string(text)
+    method := jwt.GetSigningMethod(name)
+    if method == nil {
+        return fmt.Errorf("unsupported signing method: %s", name)
+    }
+    s.SigningMethod = method
+    return nil
+}
+
+type AppConfig struct {
+    JWTKey   string          `env:"JWT_KEY" required:"true"`
+    Algorithm SigningMethod  `env:"JWT_ALGORITHM" default:"HS256"`
+}
+
+func main() {
+    var cfg AppConfig
+    err := environ.Load(&cfg)
+    if err != nil {
+        // handle error
+    }
+    // cfg.Algorithm.SigningMethod is now set based on JWT_ALGORITHM env var
+}
+```
+
+The wrapper type implements `UnmarshalText`, so environ will call it when parsing the `JWT_ALGORITHM` environment variable. The default value `"HS256"` is mapped to `jwt.HS256` via `jwt.GetSigningMethod`.
+
 ## Supported locations to load values from
 
 Default values, supported by `default` tags

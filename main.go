@@ -1,6 +1,7 @@
 package environ
 
 import (
+	"encoding"
 	"os"
 	"reflect"
 	"strconv"
@@ -142,6 +143,22 @@ func getValue(structField reflect.StructField) (string, error) {
 
 // set will set the loaded value to the param, or return an error
 func setValue(structField reflect.StructField, param reflect.Value, value string) error {
+	// time.Time is handled by its dedicated parsing path (which honors the
+	// time_format tag) rather than the generic TextUnmarshaler hook, even
+	// though time.Time also implements encoding.TextUnmarshaler.
+	if param.Type() == reflect.TypeOf(time.Time{}) {
+		return setTimeValue(structField, param, value)
+	}
+	// types that know how to parse themselves via the standard
+	// encoding.TextUnmarshaler interface are handled before the kind-based
+	// switch, so custom types (e.g. a jwt.SigningMethod wrapper or an
+	// *ecdsa.PrivateKey adapter) can be loaded from a string value.
+	if unmarshaler, ok := textUnmarshaler(param); ok {
+		if err := unmarshaler.UnmarshalText([]byte(value)); err != nil {
+			return newError(ErrInvalidFormat, structField.Name, "value could not be unmarshaled: "+err.Error())
+		}
+		return nil
+	}
 	switch param.Type().Kind() {
 	case reflect.Bool:
 		v, err := strconv.ParseBool(value)
@@ -221,16 +238,29 @@ func setValue(structField reflect.StructField, param reflect.Value, value string
 		}
 		param.SetUint(val)
 	case reflect.Struct:
-		if param.Type() == reflect.TypeOf(time.Time{}) {
-			return setTimeValue(structField, param, value)
-		}
-
 		fallthrough
 	default:
 		return newError(ErrUnsupportedType, structField.Name, "provided type is not supported in this version")
 	}
 
 	return nil
+}
+
+// textUnmarshaler returns the encoding.TextUnmarshaler for a param if its type,
+// or a pointer to its type, implements the interface. This lets custom types
+// define how a string value is parsed, mirroring the behavior of the standard
+// encoding packages (json, xml, csv).
+func textUnmarshaler(param reflect.Value) (encoding.TextUnmarshaler, bool) {
+	var textUnmarshalerType = reflect.TypeOf((*encoding.TextUnmarshaler)(nil)).Elem()
+	// value receiver
+	if param.Type().Implements(textUnmarshalerType) {
+		return param.Interface().(encoding.TextUnmarshaler), true
+	}
+	// pointer receiver (param is addressable because it is a settable struct field)
+	if param.CanAddr() && reflect.PointerTo(param.Type()).Implements(textUnmarshalerType) {
+		return param.Addr().Interface().(encoding.TextUnmarshaler), true
+	}
+	return nil, false
 }
 
 func getSeparator(structTag reflect.StructTag) string {
@@ -313,5 +343,3 @@ func getTimeFormat(structTag reflect.StructTag) string {
 	}
 	return time.RFC3339
 }
-
-
