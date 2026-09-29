@@ -2,6 +2,7 @@ package environ_test
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"reflect"
@@ -17,6 +18,10 @@ var (
 
 	errIntRep  = "value is not a valid integer representation"
 	errTimeRep = "value is not a valid time representation"
+
+	errEmptyValue               = errors.New("empty value")
+	errAlwaysFails              = errors.New("always fails")
+	errUnsupportedSigningMethod = "unsupported signing method: %s"
 )
 
 type exampleDefaultConfig struct {
@@ -101,7 +106,7 @@ type textUnmarshalerValue string
 
 func (t *textUnmarshalerValue) UnmarshalText(text []byte) error {
 	if len(text) == 0 {
-		return errors.New("empty value")
+		return errEmptyValue
 	}
 	*t = textUnmarshalerValue(text)
 	return nil
@@ -113,7 +118,7 @@ type textUnmarshalerPtr string
 
 func (t *textUnmarshalerPtr) UnmarshalText(text []byte) error {
 	if len(text) == 0 {
-		return errors.New("empty value")
+		return errEmptyValue
 	}
 	*t = textUnmarshalerPtr(text)
 	return nil
@@ -129,7 +134,7 @@ func (s *signingMethodLike) UnmarshalText(text []byte) error {
 		*s = signingMethodLike(text)
 		return nil
 	default:
-		return errors.New("unsupported signing method: " + string(text))
+		return fmt.Errorf(errUnsupportedSigningMethod, string(text))
 	}
 }
 
@@ -139,7 +144,7 @@ type failingUnmarshaler string
 
 func (f *failingUnmarshaler) UnmarshalText(text []byte) error {
 	if string(text) == "anything" {
-		return errors.New("always fails")
+		return errAlwaysFails
 	}
 	*f = failingUnmarshaler(text)
 	return nil
