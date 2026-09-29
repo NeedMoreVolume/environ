@@ -21,7 +21,7 @@ var (
 
 	errEmptyValue               = errors.New("empty value")
 	errAlwaysFails              = errors.New("always fails")
-	errUnsupportedSigningMethod = "unsupported signing method: %s"
+	errUnsupportedSigningMethod = errors.New("unsupported signing method")
 )
 
 type exampleDefaultConfig struct {
@@ -134,7 +134,7 @@ func (s *signingMethodLike) UnmarshalText(text []byte) error {
 		*s = signingMethodLike(text)
 		return nil
 	default:
-		return fmt.Errorf(errUnsupportedSigningMethod, string(text))
+		return fmt.Errorf("%w: %s", errUnsupportedSigningMethod, string(text))
 	}
 }
 
