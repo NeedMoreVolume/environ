@@ -95,6 +95,63 @@ type configWithStructMap struct {
 	Map map[string]structMapItem `env:"MY_STRUCT_MAP" default:"key:value"`
 }
 
+// textUnmarshalerValue is a named type with a pointer-receiver UnmarshalText,
+// standing in for a type like a jwt.SigningMethod wrapper.
+type textUnmarshalerValue string
+
+func (t *textUnmarshalerValue) UnmarshalText(text []byte) error {
+	if len(text) == 0 {
+		return errors.New("empty value")
+	}
+	*t = textUnmarshalerValue(text)
+	return nil
+}
+
+// textUnmarshalerPtr is a named type with a pointer-receiver UnmarshalText,
+// standing in for an adapter around a pointer type like *ecdsa.PrivateKey.
+type textUnmarshalerPtr string
+
+func (t *textUnmarshalerPtr) UnmarshalText(text []byte) error {
+	if len(text) == 0 {
+		return errors.New("empty value")
+	}
+	*t = textUnmarshalerPtr(text)
+	return nil
+}
+
+// signingMethodLike mimics the jwt.SigningMethod interface: a concrete type
+// that maps a string to a known value and rejects unknown ones.
+type signingMethodLike string
+
+func (s *signingMethodLike) UnmarshalText(text []byte) error {
+	switch string(text) {
+	case "HS256", "RS256", "ES256":
+		*s = signingMethodLike(text)
+		return nil
+	default:
+		return errors.New("unsupported signing method: " + string(text))
+	}
+}
+
+// failingUnmarshaler fails only for the value "anything", so the default value
+// still loads while the error path can be exercised.
+type failingUnmarshaler string
+
+func (f *failingUnmarshaler) UnmarshalText(text []byte) error {
+	if string(text) == "anything" {
+		return errors.New("always fails")
+	}
+	*f = failingUnmarshaler(text)
+	return nil
+}
+
+type textUnmarshalerConfig struct {
+	ValueReceiver   textUnmarshalerValue `env:"MY_TEXT_VALUE" default:"default_value"`
+	PointerReceiver textUnmarshalerPtr   `env:"MY_TEXT_PTR" default:"default_ptr"`
+	SigningMethod   signingMethodLike    `env:"MY_SIGNING_METHOD" default:"HS256"`
+	Failing         failingUnmarshaler   `env:"MY_TEXT_FAILING" default:"x"`
+}
+
 func unsetTestEnv() {
 	os.Unsetenv("MY_INT")
 	os.Unsetenv("MY_INT_8")
@@ -493,6 +550,74 @@ func TestLoad(t *testing.T) {
 				Err:   environ.ErrUnsupportedType,
 				Key:   "Map",
 				Extra: "provided type is not supported in this version",
+			},
+		},
+		"text unmarshaler default values, empty env": {
+			prep: func() {
+				os.Unsetenv("MY_TEXT_VALUE")
+				os.Unsetenv("MY_TEXT_PTR")
+				os.Unsetenv("MY_SIGNING_METHOD")
+				os.Unsetenv("MY_TEXT_FAILING")
+			},
+			input: &textUnmarshalerConfig{},
+			expectedResult: &textUnmarshalerConfig{
+				ValueReceiver:   "default_value",
+				PointerReceiver: "default_ptr",
+				SigningMethod:   "HS256",
+				Failing:         "x",
+			},
+			clean: func() {
+				os.Unsetenv("MY_TEXT_VALUE")
+				os.Unsetenv("MY_TEXT_PTR")
+				os.Unsetenv("MY_SIGNING_METHOD")
+				os.Unsetenv("MY_TEXT_FAILING")
+			},
+		},
+		"text unmarshaler with env values": {
+			prep: func() {
+				os.Setenv("MY_TEXT_VALUE", "from_env_value")
+				os.Setenv("MY_TEXT_PTR", "from_env_ptr")
+				os.Setenv("MY_SIGNING_METHOD", "ES256")
+			},
+			input: &textUnmarshalerConfig{},
+			expectedResult: &textUnmarshalerConfig{
+				ValueReceiver:   "from_env_value",
+				PointerReceiver: "from_env_ptr",
+				SigningMethod:   "ES256",
+				Failing:         "x",
+			},
+			clean: func() {
+				os.Unsetenv("MY_TEXT_VALUE")
+				os.Unsetenv("MY_TEXT_PTR")
+				os.Unsetenv("MY_SIGNING_METHOD")
+			},
+		},
+		"text unmarshaler with bad signing method value": {
+			prep: func() {
+				os.Setenv("MY_SIGNING_METHOD", "NOT_A_METHOD")
+			},
+			input: &textUnmarshalerConfig{},
+			expectedError: environ.EnvError{
+				Err:   environ.ErrInvalidFormat,
+				Key:   "SigningMethod",
+				Extra: "value could not be unmarshaled: unsupported signing method: NOT_A_METHOD",
+			},
+			clean: func() {
+				os.Unsetenv("MY_SIGNING_METHOD")
+			},
+		},
+		"text unmarshaler with failing unmarshaler": {
+			prep: func() {
+				os.Setenv("MY_TEXT_FAILING", "anything")
+			},
+			input: &textUnmarshalerConfig{},
+			expectedError: environ.EnvError{
+				Err:   environ.ErrInvalidFormat,
+				Key:   "Failing",
+				Extra: "value could not be unmarshaled: always fails",
+			},
+			clean: func() {
+				os.Unsetenv("MY_TEXT_FAILING")
 			},
 		},
 	}
